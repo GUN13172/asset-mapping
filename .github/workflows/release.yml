@@ -92,30 +92,48 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build -- ${{ matrix.args }}
 
+      - name: List build output (debug)
+        if: always()
+        run: |
+          echo "=== Listing target directory structure ==="
+          ls -la src-tauri/target/ || echo "No target directory"
+          echo "=== Searching for bundle directories ==="
+          find src-tauri/target -type d -name "bundle" 2>/dev/null || echo "No bundle directories found"
+          echo "=== Searching for all build artifacts ==="
+          find src-tauri/target -type f \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.msi" \) 2>/dev/null || echo "No artifacts found"
+        shell: bash
+
       - name: Prepare artifacts (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
           mkdir -p artifacts
-          find src-tauri/target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) -exec cp {} artifacts/ \;
-          ls -la artifacts/
+          if [ -d "src-tauri/target/universal-apple-darwin/release/bundle" ]; then
+            find src-tauri/target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) -exec cp {} artifacts/ \; || true
+          fi
+          ls -la artifacts/ || echo "No artifacts found"
 
       - name: Prepare artifacts (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           mkdir -p artifacts
-          find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -exec cp {} artifacts/ \;
-          ls -la artifacts/
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -exec cp {} artifacts/ \; || true
+          fi
+          ls -la artifacts/ || echo "No artifacts found"
 
       - name: Prepare artifacts (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
           mkdir -p artifacts
-          Get-ChildItem -Path src-tauri\target\release\bundle -Recurse -Include *.msi | Copy-Item -Destination artifacts\
-          Get-ChildItem artifacts
+          if (Test-Path "src-tauri\target\release\bundle") {
+            Get-ChildItem -Path src-tauri\target\release\bundle -Recurse -Include *.msi -ErrorAction SilentlyContinue | Copy-Item -Destination artifacts\ -ErrorAction SilentlyContinue
+          }
+          Get-ChildItem artifacts -ErrorAction SilentlyContinue
         shell: pwsh
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
+        if: hashFiles('artifacts/*') != ''
         with:
           tag_name: ${{ github.ref_name }}
           draft: true

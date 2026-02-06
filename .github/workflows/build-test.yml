@@ -29,6 +29,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -44,5 +45,10 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build Tauri app
+      - name: Build Tauri app (Windows - MSI only)
+        if: matrix.platform == 'windows-latest'
+        run: npm run tauri build -- --bundles msi
+
+      - name: Build Tauri app (macOS/Linux)
+        if: matrix.platform != 'windows-latest'
         run: npm run tauri build
