@@ -108,25 +108,44 @@ jobs:
         run: |
           mkdir -p artifacts
           if [ -d "src-tauri/target/universal-apple-darwin/release/bundle" ]; then
-            find src-tauri/target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) -exec cp {} artifacts/ \; || true
+            # 重命名 universal dmg
+            find src-tauri/target/universal-apple-darwin/release/bundle/dmg -type f -name "*.dmg" -exec sh -c 'cp "$1" "artifacts/AssetMapping_${PACKAGE_VERSION}_macOS_universal.dmg"' _ {} \; || true
+            # 重命名 universal app.tar.gz
+            find src-tauri/target/universal-apple-darwin/release/bundle/macos -type f -name "*.app.tar.gz" -exec sh -c 'cp "$1" "artifacts/AssetMapping_${PACKAGE_VERSION}_macOS_universal.app.tar.gz"' _ {} \; || true
           fi
           ls -la artifacts/ || echo "No artifacts found"
+        env:
+          PACKAGE_VERSION: ${{ needs.create-release.outputs.release_id && '1.0.0' || '1.0.0' }}
 
       - name: Prepare artifacts (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           mkdir -p artifacts
           if [ -d "src-tauri/target/release/bundle" ]; then
-            find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -exec cp {} artifacts/ \; || true
+            # 重命名 AppImage
+            find src-tauri/target/release/bundle/appimage -type f -name "*.AppImage" -exec sh -c 'cp "$1" "artifacts/AssetMapping_${PACKAGE_VERSION}_Linux_x86_64.AppImage"' _ {} \; || true
+            # 重命名 deb
+            find src-tauri/target/release/bundle/deb -type f -name "*.deb" -exec sh -c 'cp "$1" "artifacts/AssetMapping_${PACKAGE_VERSION}_Linux_amd64.deb"' _ {} \; || true
+            # 重命名 rpm (如果存在)
+            find src-tauri/target/release/bundle/rpm -type f -name "*.rpm" -exec sh -c 'cp "$1" "artifacts/AssetMapping_${PACKAGE_VERSION}_Linux_x86_64.rpm"' _ {} \; 2>/dev/null || true
           fi
           ls -la artifacts/ || echo "No artifacts found"
+        env:
+          PACKAGE_VERSION: 1.0.0
 
       - name: Prepare artifacts (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
           mkdir -p artifacts
-          if (Test-Path "src-tauri\target\release\bundle") {
-            Get-ChildItem -Path src-tauri\target\release\bundle -Recurse -Include *.msi -ErrorAction SilentlyContinue | Copy-Item -Destination artifacts\ -ErrorAction SilentlyContinue
+          if (Test-Path "src-tauri\target\release\bundle\msi") {
+            Get-ChildItem -Path "src-tauri\target\release\bundle\msi" -Filter "*.msi" -ErrorAction SilentlyContinue | ForEach-Object {
+              Copy-Item $_.FullName -Destination "artifacts\AssetMapping_1.0.0_Windows_x64.msi" -ErrorAction SilentlyContinue
+            }
+          }
+          if (Test-Path "src-tauri\target\release\bundle\nsis") {
+            Get-ChildItem -Path "src-tauri\target\release\bundle\nsis" -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
+              Copy-Item $_.FullName -Destination "artifacts\AssetMapping_1.0.0_Windows_x64_Setup.exe" -ErrorAction SilentlyContinue
+            }
           }
           Get-ChildItem artifacts -ErrorAction SilentlyContinue
         shell: pwsh
