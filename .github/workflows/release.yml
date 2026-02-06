@@ -92,17 +92,31 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build -- ${{ matrix.args }}
 
+      - name: Prepare artifacts (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          mkdir -p artifacts
+          find src-tauri/target/universal-apple-darwin/release/bundle -type f \( -name "*.dmg" -o -name "*.app.tar.gz" \) -exec cp {} artifacts/ \;
+          ls -la artifacts/
+
+      - name: Prepare artifacts (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          mkdir -p artifacts
+          find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) -exec cp {} artifacts/ \;
+          ls -la artifacts/
+
+      - name: Prepare artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          mkdir -p artifacts
+          Get-ChildItem -Path src-tauri\target\release\bundle -Recurse -Include *.msi | Copy-Item -Destination artifacts\
+          Get-ChildItem artifacts
+        shell: pwsh
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           draft: true
-          files: |
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app.tar.gz
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/universal-apple-darwin/release/bundle/**/*.dmg
-            src-tauri/target/universal-apple-darwin/release/bundle/**/*.app.tar.gz
+          files: artifacts/*
