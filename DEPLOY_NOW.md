@@ -60,5 +60,5 @@ git push origin v1.0.0
 ## 📚 详细文档
 
 - [快速开始](QUICK_START.md)
-- [完整指南](docs/GITHUB_SETUP.md)
-- [部署总结](docs/打包部署总结.md)
+- [完整指南](.github/docs/GITHUB_SETUP.md)
+- [部署总结](.github/docs/打包部署总结.md)

@@ -28,5 +28,8 @@ src-tauri/target/
 src-tauri/Cargo.lock
 
 # Test files
-*.sh
+test_*.sh
 theme-debug.html
+
+# Docs - 排除所有运行日志
+docs/

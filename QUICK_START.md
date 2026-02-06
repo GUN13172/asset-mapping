@@ -60,8 +60,8 @@ https://github.com/YOUR_GITHUB_USERNAME/asset-mapping/releases
 
 ## 📖 详细文档
 
-- [完整部署指南](docs/GITHUB_SETUP.md)
-- [部署文档](docs/DEPLOYMENT.md)
+- [完整部署指南](.github/docs/GITHUB_SETUP.md)
+- [部署文档](.github/docs/DEPLOYMENT.md)
 - [项目 README](README.md)
 
 ## 🆘 遇到问题？
