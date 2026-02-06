@@ -36,16 +36,13 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './asset-mapping/src-tauri -> target'
+          workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
         run: npm install
-        working-directory: ./asset-mapping
 
       - name: Build frontend
         run: npm run build
-        working-directory: ./asset-mapping
 
       - name: Build Tauri app
         run: npm run tauri build
-        working-directory: ./asset-mapping

@@ -47,18 +47,16 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './asset-mapping/src-tauri -> target'
+          workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
         run: npm install
-        working-directory: ./asset-mapping
 
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: ./asset-mapping
           tagName: ${{ github.ref_name }}
           releaseName: 'Asset Mapping Tool v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
