@@ -1,0 +1,122 @@
+{
+  "fofa": {
+    "fields": {
+      "ip": "ip",
+      "port": "port",
+      "domain": "domain",
+      "host": "host",
+      "os": "os",
+      "server": "server",
+      "asn": "asn",
+      "protocol": "protocol",
+      "banner": "banner",
+      "title": "title",
+      "header": "header",
+      "body": "body",
+      "icp": "icp",
+      "country": "country",
+      "region": "region",
+      "city": "city",
+      "cert": "cert",
+      "cert.sn": "cert.sn"
+    },
+    "operators": {
+      "equal": "=",
+      "and": "&&",
+      "or": "||",
+      "not_equal": "!=",
+      "left_paren": "(",
+      "right_paren": ")"
+    }
+  },
+  "quake": {
+    "fields": {
+      "ip": "ip",
+      "port": "port",
+      "domain": "domain",
+      "host": "host",
+      "os": "os",
+      "server": "server",
+      "asn": "asn",
+      "protocol": "service",
+      "banner": "response",
+      "title": "title",
+      "header": "headers",
+      "body": "body",
+      "icp": "icp",
+      "country": "country",
+      "region": "province",
+      "city": "city",
+      "cert": "cert",
+      "cert.sn": "tls_SN"
+    },
+    "operators": {
+      "equal": ":",
+      "and": "AND",
+      "or": "OR",
+      "not_equal": "NOT",
+      "left_paren": "(",
+      "right_paren": ")"
+    }
+  },
+  "hunter": {
+    "fields": {
+      "ip": "ip",
+      "port": "ip.port",
+      "domain": "domain",
+      "host": "domain",
+      "os": "ip.os",
+      "server": "header.server",
+      "asn": "as.number",
+      "protocol": "protocol",
+      "banner": "protocol.banner",
+      "title": "web.title",
+      "header": "header",
+      "body": "web.body",
+      "icp": "icp.number",
+      "country": "country",
+      "region": "province",
+      "city": "city",
+      "cert": "cert",
+      "cert.sn": "cert.serial_number"
+    },
+    "operators": {
+      "equal": "=",
+      "and": "&&",
+      "or": "||",
+      "not_equal": "!=",
+      "left_paren": "(",
+      "right_paren": ")"
+    }
+  },
+  "daydaymap": {
+    "fields": {
+      "ip": "ip",
+      "port": "port",
+      "domain": "domain",
+      "host": "host",
+      "os": "os",
+      "server": "server",
+      "asn": "asn",
+      "protocol": "protocol",
+      "banner": "banner",
+      "title": "title",
+      "header": "header",
+      "body": "body",
+      "icp": "icp",
+      "country": "country",
+      "region": "region",
+      "city": "city",
+      "cert": "cert",
+      "cert.sn": "cert.sn"
+    },
+    "operators": {
+      "equal": "=",
+      "and": "&&",
+      "or": "||",
+      "not_equal": "!=",
+      "left_paren": "(",
+      "right_paren": ")"
+    }
+  }
+}

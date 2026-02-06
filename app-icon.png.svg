@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="nodeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06ffa5;stop-opacity:1" />
+    </linearGradient>
+    
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bgGradient)"/>
+  
+  <!-- 雷达圆环 -->
+  <g transform="translate(512, 512)">
+    <!-- 外圈 -->
+    <circle cx="0" cy="0" r="380" fill="none" stroke="url(#radarGradient)" stroke-width="8" opacity="0.3"/>
+    <circle cx="0" cy="0" r="320" fill="none" stroke="url(#radarGradient)" stroke-width="6" opacity="0.4"/>
+    <circle cx="0" cy="0" r="260" fill="none" stroke="url(#radarGradient)" stroke-width="5" opacity="0.5"/>
+    <circle cx="0" cy="0" r="200" fill="none" stroke="url(#radarGradient)" stroke-width="4" opacity="0.6"/>
+    
+    <!-- 扫描线 -->
+    <line x1="0" y1="0" x2="0" y2="-380" stroke="url(#radarGradient)" stroke-width="3" opacity="0.8"/>
+    <line x1="0" y1="0" x2="270" y2="-270" stroke="url(#radarGradient)" stroke-width="2" opacity="0.5"/>
+    
+    <!-- 网络节点 -->
+    <g filter="url(#shadow)">
+      <!-- 中心节点 -->
+      <circle cx="0" cy="0" r="40" fill="url(#nodeGradient)" stroke="#ffffff" stroke-width="6"/>
+      
+      <!-- 第一层节点 -->
+      <circle cx="0" cy="-200" r="25" fill="url(#nodeGradient)" stroke="#00d4ff" stroke-width="4"/>
+      <circle cx="173" cy="-100" r="25" fill="url(#nodeGradient)" stroke="#00d4ff" stroke-width="4"/>
+      <circle cx="173" cy="100" r="25" fill="url(#nodeGradient)" stroke="#00d4ff" stroke-width="4"/>
+      <circle cx="0" cy="200" r="25" fill="url(#nodeGradient)" stroke="#00d4ff" stroke-width="4"/>
+      <circle cx="-173" cy="100" r="25" fill="url(#nodeGradient)" stroke="#00d4ff" stroke-width="4"/>
+      <circle cx="-173" cy="-100" r="25" fill="url(#nodeGradient)" stroke="#00d4ff" stroke-width="4"/>
+      
+      <!-- 连接线 -->
+      <line x1="0" y1="0" x2="0" y2="-200" stroke="#00d4ff" stroke-width="4" opacity="0.7"/>
+      <line x1="0" y1="0" x2="173" y2="-100" stroke="#00d4ff" stroke-width="4" opacity="0.7"/>
+      <line x1="0" y1="0" x2="173" y2="100" stroke="#00d4ff" stroke-width="4" opacity="0.7"/>
+      <line x1="0" y1="0" x2="0" y2="200" stroke="#00d4ff" stroke-width="4" opacity="0.7"/>
+      <line x1="0" y1="0" x2="-173" y2="100" stroke="#00d4ff" stroke-width="4" opacity="0.7"/>
+      <line x1="0" y1="0" x2="-173" y2="-100" stroke="#00d4ff" stroke-width="4" opacity="0.7"/>
+      
+      <!-- 第二层节点 -->
+      <circle cx="0" cy="-320" r="20" fill="#8b5cf6" opacity="0.9"/>
+      <circle cx="277" cy="-160" r="20" fill="#8b5cf6" opacity="0.9"/>
+      <circle cx="277" cy="160" r="20" fill="#8b5cf6" opacity="0.9"/>
+      <circle cx="0" cy="320" r="20" fill="#8b5cf6" opacity="0.9"/>
+      <circle cx="-277" cy="160" r="20" fill="#8b5cf6" opacity="0.9"/>
+      <circle cx="-277" cy="-160" r="20" fill="#8b5cf6" opacity="0.9"/>
+    </g>
+    
+    <!-- 信号指示器 -->
+    <g opacity="0.8">
+      <circle cx="220" cy="-220" r="15" fill="#06ffa5"/>
+      <circle cx="-220" cy="220" r="15" fill="#06ffa5"/>
+      <circle cx="220" cy="220" r="15" fill="#00d4ff"/>
+      <circle cx="-220" cy="-220" r="15" fill="#00d4ff"/>
+    </g>
+  </g>
+
+  <!-- 四角装饰 -->
+  <path d="M 120 120 L 120 200 L 200 200" stroke="#06ffa5" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M 904 120 L 904 200 L 824 200" stroke="#06ffa5" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M 120 904 L 120 824 L 200 824" stroke="#06ffa5" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M 904 904 L 904 824 L 824 824" stroke="#06ffa5" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>
+
+
+
+

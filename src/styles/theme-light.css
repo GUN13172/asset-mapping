@@ -1,0 +1,397 @@
+/* 亮色主题变量定义 */
+[data-theme="light"] {
+  /* 主色调 */
+  --primary-gradient: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%) !important;
+  --secondary-gradient: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%) !important;
+  --dark-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  
+  /* 背景色 */
+  --bg-primary: #f8fafc !important;
+  --bg-secondary: #ffffff !important;
+  --bg-card: #ffffff !important;
+  --bg-hover: #f1f5f9 !important;
+  
+  /* 文字颜色 - 修复为深色，确保可读性 */
+  --text-primary: #0f172a !important;
+  --text-secondary: #334155 !important;
+  --text-muted: #64748b !important;
+  
+  /* 强调色 */
+  --accent-cyan: #0ea5e9 !important;
+  --accent-purple: #8b5cf6 !important;
+  --accent-green: #10b981 !important;
+  --accent-orange: #f59e0b !important;
+  --accent-red: #ef4444 !important;
+  
+  /* 边框和分割线 */
+  --border-color: #cbd5e1 !important;
+  --border-glow: rgba(14, 165, 233, 0.3) !important;
+  
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.12) !important;
+  --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.2) !important;
+  
+  /* 圆角 */
+  --radius-sm: 8px !important;
+  --radius-md: 12px !important;
+  --radius-lg: 16px !important;
+  
+  /* 过渡 */
+  --transition-fast: 0.2s ease !important;
+  --transition-normal: 0.3s ease !important;
+  --transition-slow: 0.5s ease !important;
+}
+
+/* 亮色主题全局背景 */
+[data-theme="light"] body {
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #f5f3ff 100%) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 亮色主题根元素 */
+[data-theme="light"] #root {
+  color: var(--text-primary) !important;
+}
+
+/* 亮色主题所有文本元素 */
+[data-theme="light"] * {
+  color: inherit;
+}
+
+[data-theme="light"] p,
+[data-theme="light"] span,
+[data-theme="light"] div,
+[data-theme="light"] label {
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
+  color: var(--text-primary) !important;
+}
+
+/* 亮色主题滚动条 */
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ea5e9 0%, #8b5cf6 100%);
+}
+
+/* 亮色主题选中文本 */
+[data-theme="light"] ::selection {
+  background: #0ea5e9;
+  color: white;
+}
+
+/* 亮色主题玻璃态效果 */
+[data-theme="light"] .glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: var(--shadow-md);
+}
+
+/* 亮色主题 Layout */
+[data-theme="light"] .ant-layout {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-layout-header {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-layout-sider {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-right: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-layout-content {
+  color: var(--text-primary) !important;
+}
+
+/* 亮色主题菜单 */
+[data-theme="light"] .ant-menu {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-menu-item {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-menu-item:hover {
+  background: var(--bg-hover) !important;
+  color: var(--accent-cyan) !important;
+}
+
+[data-theme="light"] .ant-menu-item-selected {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+}
+
+/* 亮色主题卡片 */
+[data-theme="light"] .ant-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .ant-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-glow) !important;
+}
+
+[data-theme="light"] .ant-card-head {
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-card-head-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-card-body {
+  color: var(--text-secondary) !important;
+}
+
+/* 亮色主题按钮 */
+[data-theme="light"] .ant-btn-default {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-btn-default:hover {
+  border-color: var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+  background: var(--bg-hover) !important;
+}
+
+/* 亮色主题输入框 */
+[data-theme="light"] .ant-input,
+[data-theme="light"] .ant-input-textarea textarea,
+[data-theme="light"] .ant-select-selector {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-input:hover,
+[data-theme="light"] .ant-input-textarea textarea:hover,
+[data-theme="light"] .ant-select-selector:hover {
+  border-color: var(--accent-cyan) !important;
+}
+
+[data-theme="light"] .ant-input:focus,
+[data-theme="light"] .ant-input-textarea textarea:focus,
+[data-theme="light"] .ant-select-focused .ant-select-selector {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1) !important;
+  background: white !important;
+}
+
+[data-theme="light"] .ant-input::placeholder,
+[data-theme="light"] .ant-input-textarea textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* 亮色主题下拉选择器 */
+[data-theme="light"] .ant-select-dropdown {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .ant-select-item {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-select-item-option-selected {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+}
+
+[data-theme="light"] .ant-select-item-option:hover {
+  background: var(--bg-hover) !important;
+}
+
+/* 亮色主题表格 */
+[data-theme="light"] .ant-table {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-table-thead > tr > th {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 2px solid var(--border-color) !important;
+  font-weight: 600;
+}
+
+[data-theme="light"] .ant-table-tbody > tr {
+  background: white !important;
+}
+
+[data-theme="light"] .ant-table-tbody > tr:hover {
+  background: var(--bg-hover) !important;
+}
+
+[data-theme="light"] .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* 亮色主题分页器 */
+[data-theme="light"] .ant-pagination-item {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme="light"] .ant-pagination-item a {
+  color: var(--text-secondary) !important;
+}
+
+/* 亮色主题模态框 */
+[data-theme="light"] .ant-modal-content {
+  background: white !important;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+[data-theme="light"] .ant-modal-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-modal-body {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-modal-footer {
+  border-top: 1px solid var(--border-color) !important;
+}
+
+/* 亮色主题 Tabs */
+[data-theme="light"] .ant-tabs-tab {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-tabs-tab:hover {
+  color: var(--accent-cyan) !important;
+}
+
+[data-theme="light"] .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--accent-cyan) !important;
+}
+
+/* 亮色主题消息提示 */
+[data-theme="light"] .ant-message-notice-content {
+  background: white !important;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary) !important;
+}
+
+/* 亮色主题空状态 */
+[data-theme="light"] .ant-empty-description {
+  color: var(--text-muted) !important;
+}
+
+/* 亮色主题 Tooltip */
+[data-theme="light"] .ant-tooltip-inner {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="light"] .ant-tooltip-arrow-content {
+  background: var(--bg-secondary) !important;
+}
+
+/* 亮色主题 Popconfirm */
+[data-theme="light"] .ant-popover-inner {
+  background: white !important;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] .ant-popover-inner-content {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .ant-popover-message-title {
+  color: var(--text-primary) !important;
+}
+
+/* 亮色主题表单标签 */
+[data-theme="light"] .ant-form-item-label > label {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .ant-form-item-label > label.ant-form-item-required::before {
+  color: var(--accent-red) !important;
+}
+
+/* 亮色主题文本 */
+[data-theme="light"] .text-muted {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] .text-primary {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+/* 亮色主题特殊组件 */
+[data-theme="light"] .filter-section {
+  background: rgba(241, 245, 249, 0.6);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .setting-item {
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .setting-item:hover {
+  background: white;
+  border-color: var(--accent-cyan);
+}
+
+[data-theme="light"] .code-block {
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--border-color);
+  color: #059669;
+}
+
+/* 亮色主题信息提示 */
+[data-theme="light"] .info-alert {
+  background: rgba(14, 165, 233, 0.05) !important;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+
+
+

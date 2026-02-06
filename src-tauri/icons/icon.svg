@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 主渐变 - 青色到紫色 -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 次要渐变 - 绿色到青色 -->
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06ffa5;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 背景渐变 -->
+    <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 发光效果 -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 背景圆 -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)"/>
+  
+  <!-- 外圈装饰 -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="url(#mainGradient)" stroke-width="2" opacity="0.3"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#mainGradient)" stroke-width="1" opacity="0.2"/>
+
+  <!-- 主图标 - 扫描雷达 -->
+  <g transform="translate(256, 256)">
+    <!-- 雷达圆圈 -->
+    <circle cx="0" cy="0" r="120" fill="none" stroke="url(#mainGradient)" stroke-width="3" opacity="0.4"/>
+    <circle cx="0" cy="0" r="90" fill="none" stroke="url(#mainGradient)" stroke-width="2" opacity="0.5"/>
+    <circle cx="0" cy="0" r="60" fill="none" stroke="url(#mainGradient)" stroke-width="2" opacity="0.6"/>
+    <circle cx="0" cy="0" r="30" fill="none" stroke="url(#mainGradient)" stroke-width="2" opacity="0.7"/>
+    
+    <!-- 扫描扇形 -->
+    <path d="M 0,0 L 0,-120 A 120,120 0 0,1 84.85,-84.85 Z" 
+          fill="url(#mainGradient)" 
+          opacity="0.5"
+          filter="url(#glow)">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 0 0"
+        to="360 0 0"
+        dur="4s"
+        repeatCount="indefinite"/>
+    </path>
+
+    <!-- 网络节点 -->
+    <!-- 中心节点 -->
+    <circle cx="0" cy="0" r="8" fill="url(#accentGradient)" filter="url(#glow)"/>
+    
+    <!-- 第一圈节点 -->
+    <circle cx="0" cy="-60" r="6" fill="#00d4ff" opacity="0.9"/>
+    <circle cx="52" cy="-30" r="6" fill="#00d4ff" opacity="0.9"/>
+    <circle cx="52" cy="30" r="6" fill="#00d4ff" opacity="0.9"/>
+    <circle cx="0" cy="60" r="6" fill="#00d4ff" opacity="0.9"/>
+    <circle cx="-52" cy="30" r="6" fill="#00d4ff" opacity="0.9"/>
+    <circle cx="-52" cy="-30" r="6" fill="#00d4ff" opacity="0.9"/>
+    
+    <!-- 连接线 -->
+    <line x1="0" y1="0" x2="0" y2="-60" stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6"/>
+    <line x1="0" y1="0" x2="52" y2="-30" stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6"/>
+    <line x1="0" y1="0" x2="52" y2="30" stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6"/>
+    <line x1="0" y1="0" x2="0" y2="60" stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6"/>
+    <line x1="0" y1="0" x2="-52" y2="30" stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6"/>
+    <line x1="0" y1="0" x2="-52" y2="-30" stroke="url(#mainGradient)" stroke-width="1.5" opacity="0.6"/>
+
+    <!-- 第二圈节点 -->
+    <circle cx="0" cy="-100" r="5" fill="#8b5cf6" opacity="0.8"/>
+    <circle cx="87" cy="-50" r="5" fill="#8b5cf6" opacity="0.8"/>
+    <circle cx="87" cy="50" r="5" fill="#8b5cf6" opacity="0.8"/>
+    <circle cx="0" cy="100" r="5" fill="#8b5cf6" opacity="0.8"/>
+    <circle cx="-87" cy="50" r="5" fill="#8b5cf6" opacity="0.8"/>
+    <circle cx="-87" cy="-50" r="5" fill="#8b5cf6" opacity="0.8"/>
+
+    <!-- 信号波纹 -->
+    <circle cx="70" cy="-70" r="15" fill="none" stroke="#06ffa5" stroke-width="2" opacity="0.6">
+      <animate attributeName="r" from="15" to="25" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="-70" cy="70" r="15" fill="none" stroke="#06ffa5" stroke-width="2" opacity="0.6">
+      <animate attributeName="r" from="15" to="25" dur="2s" begin="1s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.6" to="0" dur="2s" begin="1s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- 四个角的装饰元素 -->
+  <!-- 左上 -->
+  <path d="M 80 80 L 80 120 L 120 120" stroke="url(#accentGradient)" stroke-width="3" fill="none" opacity="0.6"/>
+  <!-- 右上 -->
+  <path d="M 432 80 L 432 120 L 392 120" stroke="url(#accentGradient)" stroke-width="3" fill="none" opacity="0.6"/>
+  <!-- 左下 -->
+  <path d="M 80 432 L 80 392 L 120 392" stroke="url(#accentGradient)" stroke-width="3" fill="none" opacity="0.6"/>
+  <!-- 右下 -->
+  <path d="M 432 432 L 432 392 L 392 392" stroke="url(#accentGradient)" stroke-width="3" fill="none" opacity="0.6"/>
+
+  <!-- 环形进度条装饰 -->
+  <circle cx="256" cy="256" r="230" 
+          fill="none" 
+          stroke="url(#accentGradient)" 
+          stroke-width="4" 
+          stroke-dasharray="10 20"
+          opacity="0.4">
+    <animateTransform
+      attributeName="transform"
+      type="rotate"
+      from="0 256 256"
+      to="360 256 256"
+      dur="20s"
+      repeatCount="indefinite"/>
+  </circle>
+</svg>
