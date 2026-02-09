@@ -7,7 +7,10 @@ import {
   SettingOutlined,
   ExportOutlined,
   HistoryOutlined,
-  SwapOutlined
+  SwapOutlined,
+  SendOutlined,
+  DatabaseOutlined,
+  BugOutlined
 } from '@ant-design/icons';
 import AssetQuery from './components/AssetQuery';
 import ApiKeyManagement from './components/ApiKeyManagement';
@@ -15,6 +18,9 @@ import Settings from './components/Settings';
 import ExportData from './components/ExportData';
 import HistoryRecords from './components/HistoryRecords';
 import QueryConverter from './components/QueryConverter';
+import Resender from './components/Resender';
+import PocManager from './components/PocManager';
+import VulnerabilityScan from './components/VulnerabilityScan';
 import 'antd/dist/reset.css';
 
 const { Header, Content, Sider } = Layout;
@@ -44,6 +50,26 @@ const App: React.FC = () => {
       label: '资产测绘'
     },
     {
+      key: 'poc-manager',
+      icon: <DatabaseOutlined />,
+      label: 'POC管理'
+    },
+    {
+      key: 'vulnerability-scan',
+      icon: <BugOutlined />,
+      label: '漏洞扫描'
+    },
+    {
+      key: 'resender',
+      icon: <SendOutlined />,
+      label: '重发器'
+    },
+    {
+      key: 'query-converter',
+      icon: <SwapOutlined />,
+      label: '语法转换'
+    },
+    {
       key: 'api-keys',
       icon: <KeyOutlined />,
       label: 'API密钥管理'
@@ -52,11 +78,6 @@ const App: React.FC = () => {
       key: 'export',
       icon: <ExportOutlined />,
       label: '数据导出'
-    },
-    {
-      key: 'query-converter',
-      icon: <SwapOutlined />,
-      label: '语法转换'
     },
     {
       key: 'history',
@@ -80,6 +101,15 @@ const App: React.FC = () => {
       <div className="fade-in">
         <div style={{ display: selectedKey === 'asset-query' ? 'block' : 'none' }}>
           <AssetQuery />
+        </div>
+        <div style={{ display: selectedKey === 'poc-manager' ? 'block' : 'none' }}>
+          <PocManager />
+        </div>
+        <div style={{ display: selectedKey === 'vulnerability-scan' ? 'block' : 'none' }}>
+          <VulnerabilityScan active={selectedKey === 'vulnerability-scan'} />
+        </div>
+        <div style={{ display: selectedKey === 'resender' ? 'block' : 'none' }}>
+          <Resender />
         </div>
         <div style={{ display: selectedKey === 'api-keys' ? 'block' : 'none' }}>
           <ApiKeyManagement />
@@ -123,10 +153,11 @@ const App: React.FC = () => {
           background: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border-color)',
           height: '64px',
-          zIndex: 10
+          zIndex: 10,
+          backdropFilter: 'blur(12px)',
         }}>
-          <div className="app-header-title">
-            资产测绘工具
+          <div className="app-header-title" style={{ fontSize: '20px', fontWeight: 'bold', color: isDark ? '#00d4ff' : '#1677ff' }}>
+            资产测绘与漏洞研究平台
           </div>
         </Header>
         <Layout className="site-layout">
@@ -134,7 +165,8 @@ const App: React.FC = () => {
             width={240}
             style={{
               background: 'var(--bg-secondary)',
-              borderRight: '1px solid var(--border-color)'
+              borderRight: '1px solid var(--border-color)',
+              backdropFilter: 'blur(12px)',
             }}
           >
             <Menu
@@ -157,16 +189,19 @@ const App: React.FC = () => {
           <Layout style={{ padding: '24px', background: 'transparent' }}>
             <Content
               style={{
-                padding: 24,
+                padding: 0,
                 margin: 0,
                 minHeight: 280,
                 background: 'rgba(255, 255, 255, 0.02)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: 8,
+                backdropFilter: 'blur(15px)',
+                borderRadius: 12,
                 border: '1px solid var(--border-color)',
+                overflow: 'auto'
               }}
             >
-              {renderContent()}
+              <div style={{ padding: '24px' }}>
+                {renderContent()}
+              </div>
             </Content>
           </Layout>
         </Layout>
@@ -175,4 +210,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App; 
+export default App;

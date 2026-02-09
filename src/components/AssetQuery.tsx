@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Card, Tabs, Input, Button, Table, Select, Space, Checkbox, Alert, AutoComplete, message } from 'antd';
-import { SearchOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Card, Tabs, Input, Button, Table, Select, Space, Checkbox, Alert, AutoComplete, message, Tag } from 'antd';
+import { SearchOutlined, DownloadOutlined, SendOutlined, BugOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import ProgressModal, { ProgressStatus, ProgressLog } from './ProgressModal';
+import { fingerprints, Fingerprint } from '../data/fingerprints';
 
 interface AssetResult {
   url: string;
@@ -14,6 +15,7 @@ interface AssetResult {
   province?: string;
   city?: string;
   server?: string;
+  source?: string;
 }
 
 interface ProgressEventPayload {
@@ -41,6 +43,8 @@ const AssetQuery: React.FC = () => {
   const [city, setCity] = useState<string>('');
   const [appendToQuery, setAppendToQuery] = useState<boolean>(true);
   const [autoCompleteOptions, setAutoCompleteOptions] = useState<{ value: string; label: React.ReactNode }[]>([]);
+  const [aggregatedSearch, setAggregatedSearch] = useState<boolean>(false);
+  const [convertedQueries, setConvertedQueries] = useState<Record<string, string>>({});
 
   // 搜索进度弹窗状态
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -172,6 +176,20 @@ const AssetQuery: React.FC = () => {
   // 表格列定义
   const columns = [
     {
+      title: '来源',
+      dataIndex: 'source',
+      key: 'source',
+      render: (platform: string) => {
+        const colors: Record<string, string> = {
+          fofa: '#1677ff',
+          hunter: '#fa8c16',
+          quake: '#722ed1',
+          daydaymap: '#13c2c2'
+        };
+        return <Tag color={colors[platform] || 'blue'}>{platform.toUpperCase()}</Tag>;
+      }
+    },
+    {
       title: 'URL',
       dataIndex: 'url',
       key: 'url',
@@ -212,7 +230,47 @@ const AssetQuery: React.FC = () => {
       dataIndex: 'server',
       key: 'server',
     },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: AssetResult) => (
+        <Space size="middle">
+          <Button
+            type="link"
+            size="small"
+            icon={<SendOutlined />}
+            onClick={() => handleSendToResender(record)}
+          >
+            重发
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<BugOutlined />}
+            style={{ color: '#ff4d4f' }}
+            onClick={() => handleSendToScanner(record)}
+          >
+            扫描
+          </Button>
+        </Space>
+      ),
+    },
   ];
+
+  // 发送到扫描器
+  const handleSendToScanner = (record: AssetResult) => {
+    const target = record.url || record.ip;
+    if (target) {
+      localStorage.setItem('pending_scan_target', target);
+      message.success(`目标 ${target} 已发送到漏洞扫描模块`);
+    }
+  };
+
+  // 发送到重发器
+  const handleSendToResender = (record: AssetResult) => {
+    message.success(`资产 ${record.url || record.ip} 已发送到重发器`);
+    // TODO: 实现全局状态或跳转逻辑
+  };
 
   // 处理平台切换
   const handlePlatformChange = (value: string) => {
@@ -220,6 +278,22 @@ const AssetQuery: React.FC = () => {
     setQuery('');
     setResults([]);
     setAutoCompleteOptions([]);
+    setConvertedQueries({});
+  };
+
+  // 实时转换逻辑
+  const handleRealtimeConvert = async (q: string) => {
+    try {
+      const results = await invoke<{ platform: string; query: string }[]>('convert_query_to_all', {
+        query: q,
+        fromPlatform: platform
+      });
+      const mapped: Record<string, string> = {};
+      results.forEach(r => mapped[r.platform] = r.query);
+      setConvertedQueries(mapped);
+    } catch (e) {
+      // 忽略转换失败
+    }
   };
 
   // 处理输入变化，生成联想提示
@@ -241,31 +315,46 @@ const AssetQuery: React.FC = () => {
         ),
       }));
       setAutoCompleteOptions(options);
+      setConvertedQueries({});
       return;
     }
 
     // 获取最后一个词（用于智能匹配）
     const lastWord = value.split(/[\s&|()]/).pop()?.toLowerCase() || '';
 
-    // 过滤匹配的语法提示
-    const filtered = currentSyntax.filter(item => {
-      const label = item.label.toLowerCase();
-      const desc = item.description.toLowerCase();
-      return label.includes(lastWord) || desc.includes(lastWord);
-    });
-
     // 生成联想选项
-    const options = filtered.map(item => ({
-      value: item.label,
-      label: (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 500, color: 'var(--accent-cyan)' }}>{item.label}</span>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.description}</span>
-        </div>
-      ),
-    }));
+    const fpOptions = fingerprints
+      .filter(f => f.name.toLowerCase().includes(lastWord) || f.category.toLowerCase().includes(lastWord))
+      .map(f => ({
+        value: f[platform as keyof Pick<Fingerprint, 'fofa' | 'hunter' | 'quake'>] || f.fofa,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--accent-green)' }}>{f.name}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{f.category}</span>
+          </div>
+        ),
+      }));
 
-    setAutoCompleteOptions(options);
+    const stOptions = currentSyntax
+      .filter(item => {
+        const label = item.label.toLowerCase();
+        const desc = item.description.toLowerCase();
+        return label.includes(lastWord) || desc.includes(lastWord);
+      })
+      .map(item => ({
+        value: item.label,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 500, color: 'var(--accent-cyan)' }}>{item.label}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.description}</span>
+          </div>
+        ),
+      }));
+
+    setAutoCompleteOptions([...fpOptions, ...stOptions]);
+
+    // 实时转换预览
+    handleRealtimeConvert(value);
   };
 
   // 处理选择联想项
@@ -273,12 +362,15 @@ const AssetQuery: React.FC = () => {
     // 如果当前查询为空，直接设置
     if (!query.trim()) {
       setQuery(value);
+      handleRealtimeConvert(value);
       return;
     }
 
     // 否则追加到当前查询
     const connector = platform === 'quake' || platform === 'daydaymap' ? ' AND ' : ' && ';
-    setQuery(query + connector + value);
+    const newQuery = query + connector + value;
+    setQuery(newQuery);
+    handleRealtimeConvert(newQuery);
   };
 
   // 处理搜索（带进度弹窗）
@@ -304,24 +396,57 @@ const AssetQuery: React.FC = () => {
     setLoading(true);
     try {
       setSearchPercent(60);
-      const result = await invoke('search_assets', {
-        platform,
-        query,
-        page,
-        pageSize: size,
-      });
 
-      const data = result as { total: number; results: AssetResult[] };
+      let finalResults: any[] = [];
+      let finalTotal = 0;
 
-      setResults(data.results || []);
-      setTotalResults(data.total || 0);
+      if (aggregatedSearch) {
+        // 并发搜索多平台
+        setSearchStatusText(`正在聚合查询各平台数据...`);
+        const platforms = ['fofa', 'hunter', 'quake'];
+        const promises = platforms.map(async (p) => {
+          try {
+            const q = p === platform ? query : (convertedQueries[p] || query);
+            const res = await invoke<any>('search_assets', {
+              platform: p,
+              query: q,
+              page,
+              pageSize: size,
+            });
+            return { platform: p, data: res };
+          } catch (e) {
+            console.error(`平台 ${p} 搜索失败:`, e);
+            return { platform: p, data: { results: [], total: 0 } };
+          }
+        });
+
+        const responses = await Promise.all(promises);
+        responses.forEach(r => {
+          const resWithSource = (r.data.results || []).map((item: any) => ({ ...item, source: r.platform }));
+          finalResults = [...finalResults, ...resWithSource];
+          finalTotal += (r.data.total || 0);
+        });
+      } else {
+        const result = await invoke('search_assets', {
+          platform,
+          query,
+          page,
+          pageSize: size,
+        });
+        const data = result as { total: number; results: any[] };
+        finalResults = (data.results || []).map(item => ({ ...item, source: platform }));
+        finalTotal = data.total || 0;
+      }
+
+      setResults(finalResults);
+      setTotalResults(finalTotal);
 
       setSearchPercent(100);
       setSearchStatus('success');
-      setSearchStatusText(`查询完成！共找到 ${data.total || 0} 条结果，本页 ${(data.results || []).length} 条`);
+      setSearchStatusText(`查询完成！共找到 ${finalTotal} 条结果，本页 ${finalResults.length} 条`);
       setSearchLogs(prev => [...prev, {
         time: new Date().toLocaleTimeString(),
-        message: `✓ 查询成功: 共 ${data.total || 0} 条结果`,
+        message: `✓ 查询完成: 共 ${finalTotal} 条结果`,
         type: 'success',
       }]);
     } catch (error: any) {
@@ -340,13 +465,12 @@ const AssetQuery: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [query, platform, currentPage, pageSize]);
+  }, [query, platform, currentPage, pageSize, aggregatedSearch, convertedQueries]);
 
   // 处理页码变化 - 切换页码后自动触发搜索
   const handlePageChange = (page: number, newPageSize?: number) => {
     setCurrentPage(page);
     if (newPageSize) setPageSize(newPageSize);
-    // 直接用新的 page/pageSize 触发搜索
     handleSearch(page, newPageSize ?? pageSize);
   };
 
@@ -356,70 +480,39 @@ const AssetQuery: React.FC = () => {
 
     if (province) {
       switch (platform) {
-        case 'hunter':
-          locationQuery += `ip.province="${province}"`;
-          break;
-        case 'fofa':
-          locationQuery += `region="${province}"`;
-          break;
-        case 'quake':
-          locationQuery += `province: "${province}"`;
-          break;
-        case 'daydaymap':
-          locationQuery += `province:"${province}"`;
-          break;
+        case 'hunter': locationQuery += `ip.province="${province}"`; break;
+        case 'fofa': locationQuery += `region="${province}"`; break;
+        case 'quake': locationQuery += `province: "${province}"`; break;
+        case 'daydaymap': locationQuery += `province:"${province}"`; break;
       }
     }
 
     if (city) {
       if (locationQuery) {
-        switch (platform) {
-          case 'hunter':
-          case 'fofa':
-            locationQuery += ' && ';
-            break;
-          case 'quake':
-          case 'daydaymap':
-            locationQuery += ' AND ';
-            break;
-        }
+        locationQuery += (platform === 'quake' || platform === 'daydaymap') ? ' AND ' : ' && ';
       }
-
       switch (platform) {
-        case 'hunter':
-          locationQuery += `ip.city="${city}"`;
-          break;
-        case 'fofa':
-          locationQuery += `city="${city}"`;
-          break;
-        case 'quake':
-          locationQuery += `city: "${city}"`;
-          break;
-        case 'daydaymap':
-          locationQuery += `city:"${city}"`;
-          break;
+        case 'hunter': locationQuery += `ip.city="${city}"`; break;
+        case 'fofa': locationQuery += `city="${city}"`; break;
+        case 'quake': locationQuery += `city: "${city}"`; break;
+        case 'daydaymap': locationQuery += `city:"${city}"`; break;
       }
     }
 
     if (locationQuery) {
+      let newQuery = '';
       if (appendToQuery && query) {
-        switch (platform) {
-          case 'hunter':
-          case 'fofa':
-            setQuery(`${query} && ${locationQuery}`);
-            break;
-          case 'quake':
-          case 'daydaymap':
-            setQuery(`${query} AND ${locationQuery}`);
-            break;
-        }
+        const connector = (platform === 'quake' || platform === 'daydaymap') ? ' AND ' : ' && ';
+        newQuery = `${query}${connector}${locationQuery}`;
       } else {
-        setQuery(locationQuery);
+        newQuery = locationQuery;
       }
+      setQuery(newQuery);
+      handleRealtimeConvert(newQuery);
     }
   };
 
-  // 导出结果（带进度弹窗）
+  // 导出结果
   const exportResults = async () => {
     if (results.length === 0) {
       message.warning('没有可导出的结果');
@@ -427,8 +520,6 @@ const AssetQuery: React.FC = () => {
     }
 
     const taskId = `export_${Date.now()}`;
-
-    // 重置并打开导出进度弹窗
     setExportModalOpen(true);
     setExportStatus('running');
     setExportPercent(0);
@@ -454,9 +545,8 @@ const AssetQuery: React.FC = () => {
       console.error('导出出错:', error);
       const errMsg = typeof error === 'string' ? error : (error?.message || '未知错误');
       message.error(`导出出错: ${errMsg}`);
-      // 如果后端没有发送 error 状态事件，手动设置
-      setExportStatus(prev => prev === 'running' ? 'error' : prev);
-      setExportStatusText(prev => prev.includes('失败') ? prev : `导出失败: ${errMsg}`);
+      setExportStatus('error');
+      setExportStatusText(`导出失败: ${errMsg}`);
       setExportLogs(prev => [...prev, {
         time: new Date().toLocaleTimeString(),
         message: `✗ 导出失败: ${errMsg}`,
@@ -477,7 +567,6 @@ const AssetQuery: React.FC = () => {
   const pageSizeOptions = [10, 20, 50, 100];
 
   return (
-
     <Card title="多平台资产查询" className="glass-effect" bordered={false}>
       <Tabs
         activeKey={platform}
@@ -508,6 +597,27 @@ const AssetQuery: React.FC = () => {
             }}
           />
         </AutoComplete>
+
+        {Object.keys(convertedQueries).length > 0 && query && (
+          <div className="syntax-preview fade-in" style={{
+            marginBottom: 16,
+            padding: '8px 12px',
+            background: 'rgba(0,0,0,0.1)',
+            borderRadius: '6px',
+            border: '1px dashed var(--border-color)',
+            fontSize: '12px'
+          }}>
+            <Space wrap>
+              <span style={{ color: 'var(--text-muted)' }}>实时转换:</span>
+              {Object.entries(convertedQueries).map(([p, q]) => (
+                <div key={p} style={{ display: 'inline-block', marginRight: 16 }}>
+                  <span style={{ color: 'var(--text-secondary)', marginRight: 4 }}>{p.toUpperCase()}:</span>
+                  <span style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>{q}</span>
+                </div>
+              ))}
+            </Space>
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 16 }}>
           <Space wrap>
@@ -551,6 +661,11 @@ const AssetQuery: React.FC = () => {
           </Space>
 
           <Space>
+            <Checkbox checked={aggregatedSearch} onChange={(e) => setAggregatedSearch(e.target.checked)}>
+              <ThunderboltOutlined style={{ color: '#faad14', marginRight: 4 }} />
+              全平台聚合搜索
+            </Checkbox>
+
             <Select
               value={pageSize}
               onChange={(value) => setPageSize(value)}
@@ -593,7 +708,7 @@ const AssetQuery: React.FC = () => {
         <Table
           columns={columns}
           dataSource={results}
-          rowKey={(record) => record.ip + record.port}
+          rowKey={(record) => record.ip + record.port + record.source}
           loading={loading}
           pagination={{
             current: currentPage,
@@ -656,4 +771,4 @@ const AssetQuery: React.FC = () => {
   );
 };
 
-export default AssetQuery; 
+export default AssetQuery;

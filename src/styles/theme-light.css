@@ -1,43 +1,45 @@
 /* 亮色主题变量定义 */
 [data-theme="light"] {
+  /* 告诉浏览器这是亮色模式 */
+  color-scheme: light;
+
   /* 主色调 */
   --primary-gradient: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%) !important;
-  --secondary-gradient: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%) !important;
   --dark-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
-  
+
   /* 背景色 */
   --bg-primary: #f8fafc !important;
   --bg-secondary: #ffffff !important;
   --bg-card: #ffffff !important;
   --bg-hover: #f1f5f9 !important;
-  
+
   /* 文字颜色 - 修复为深色，确保可读性 */
   --text-primary: #0f172a !important;
   --text-secondary: #334155 !important;
   --text-muted: #64748b !important;
-  
+
   /* 强调色 */
   --accent-cyan: #0ea5e9 !important;
   --accent-purple: #8b5cf6 !important;
   --accent-green: #10b981 !important;
   --accent-orange: #f59e0b !important;
   --accent-red: #ef4444 !important;
-  
+
   /* 边框和分割线 */
   --border-color: #cbd5e1 !important;
   --border-glow: rgba(14, 165, 233, 0.3) !important;
-  
+
   /* 阴影 */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.12) !important;
   --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.2) !important;
-  
+
   /* 圆角 */
   --radius-sm: 8px !important;
   --radius-md: 12px !important;
   --radius-lg: 16px !important;
-  
+
   /* 过渡 */
   --transition-fast: 0.2s ease !important;
   --transition-normal: 0.3s ease !important;
@@ -236,22 +238,22 @@
   color: var(--text-secondary) !important;
 }
 
-[data-theme="light"] .ant-table-thead > tr > th {
+[data-theme="light"] .ant-table-thead>tr>th {
   background: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
   border-bottom: 2px solid var(--border-color) !important;
   font-weight: 600;
 }
 
-[data-theme="light"] .ant-table-tbody > tr {
+[data-theme="light"] .ant-table-tbody>tr {
   background: white !important;
 }
 
-[data-theme="light"] .ant-table-tbody > tr:hover {
+[data-theme="light"] .ant-table-tbody>tr:hover {
   background: var(--bg-hover) !important;
 }
 
-[data-theme="light"] .ant-table-tbody > tr > td {
+[data-theme="light"] .ant-table-tbody>tr>td {
   border-bottom: 1px solid var(--border-color) !important;
   color: var(--text-secondary) !important;
 }
@@ -343,11 +345,11 @@
 }
 
 /* 亮色主题表单标签 */
-[data-theme="light"] .ant-form-item-label > label {
+[data-theme="light"] .ant-form-item-label>label {
   color: var(--text-primary) !important;
 }
 
-[data-theme="light"] .ant-form-item-label > label.ant-form-item-required::before {
+[data-theme="light"] .ant-form-item-label>label.ant-form-item-required::before {
   color: var(--accent-red) !important;
 }
 
@@ -391,7 +393,3 @@
   background: rgba(14, 165, 233, 0.05) !important;
   border: 1px solid rgba(14, 165, 233, 0.2);
 }
-
-
-
-

@@ -1,13 +1,12 @@
 /* 主题变量定义 - 默认深色主题 */
 :root,
 [data-theme="dark"] {
+  /* 告诉浏览器这是深色模式，修复滚动条和输入法候选框样式 */
+  color-scheme: dark;
+  
   /* 主色调 */
   --primary-gradient: linear-gradient(135deg, #00d4ff 0%, #7b2cbf 100%);
   --secondary-gradient: linear-gradient(135deg, #06ffa5 0%, #00d4ff 100%);
-  --dark-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  
-  /* 背景色 */
-  --bg-primary: #0f0f23;
   --bg-secondary: #16213e;
   --bg-card: rgba(255, 255, 255, 0.05);
   --bg-hover: rgba(255, 255, 255, 0.08);

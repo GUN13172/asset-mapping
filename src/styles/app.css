@@ -146,6 +146,13 @@
   color: var(--text-muted) !important;
 }
 
+/* 修复中文输入法候选词背景/颜色问题 */
+.ant-input:not(:placeholder-shown),
+.ant-input-textarea textarea:not(:placeholder-shown) {
+  /* 确保输入内容颜色正确 */
+  color: var(--text-primary) !important;
+}
+
 /* 下拉选择器 */
 .ant-select-dropdown {
   background: var(--bg-secondary) !important;
@@ -173,23 +180,23 @@
   color: var(--text-secondary) !important;
 }
 
-.ant-table-thead > tr > th {
+.ant-table-thead>tr>th {
   background: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
   border-bottom: 2px solid var(--border-color) !important;
   font-weight: 600;
 }
 
-.ant-table-tbody > tr {
+.ant-table-tbody>tr {
   background: var(--bg-card) !important;
   transition: all var(--transition-fast);
 }
 
-.ant-table-tbody > tr:hover {
+.ant-table-tbody>tr:hover {
   background: var(--bg-hover) !important;
 }
 
-.ant-table-tbody > tr > td {
+.ant-table-tbody>tr>td {
   border-bottom: 1px solid var(--border-color) !important;
   color: var(--text-secondary) !important;
 }
@@ -373,12 +380,8 @@
     z-index: 999;
     transition: left var(--transition-normal);
   }
-  
+
   .ant-layout-sider.open {
     left: 0;
   }
 }
-
-
-
-
