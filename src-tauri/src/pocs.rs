@@ -42,7 +42,7 @@ pub fn scan_pocs(dir_path: &Path) -> Vec<PocTemplate> {
         if path.is_file()
             && path
                 .extension()
-                .map_or(false, |ext| ext == "yaml" || ext == "yml")
+                .is_some_and(|ext| ext == "yaml" || ext == "yml")
         {
             if let Ok(content) = fs::read_to_string(path) {
                 if let Ok(nuclei_poc) = serde_yaml::from_str::<NucleiPoc>(&content) {
@@ -83,7 +83,7 @@ pub fn scan_pocs(dir_path: &Path) -> Vec<PocTemplate> {
 
 pub fn get_default_pocs_dir() -> PathBuf {
     // 优先检查用户 HOME 目录下的 nuclei-templates
-    if let Some(home) = tauri::api::path::home_dir() {
+    if let Some(home) = dirs::home_dir() {
         let n_path = home.join("nuclei-templates");
         if n_path.exists() {
             return n_path;
@@ -91,7 +91,7 @@ pub fn get_default_pocs_dir() -> PathBuf {
     }
 
     // 如果没有，返回配置目录下的 pocs
-    tauri::api::path::config_dir()
+    dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("asset-mapping")
         .join("pocs")

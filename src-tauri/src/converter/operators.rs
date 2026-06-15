@@ -1,5 +1,8 @@
 use crate::config::PlatformConfig;
+use once_cell::sync::Lazy;
 use regex::Regex;
+
+static RE_NOT_EQUAL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(\w+)!="([^"]*)""#).unwrap());
 
 /// Operator converter for transforming operators between platforms
 pub struct OperatorConverter;
@@ -21,8 +24,7 @@ impl OperatorConverter {
         // Handle conversion from != format
         if from_config.operators.not_equal == "!=" {
             // Match field!="value" format
-            let re = Regex::new(r#"(\w+)!="([^"]*)""#).unwrap();
-            result = re
+            result = RE_NOT_EQUAL
                 .replace_all(&result, |caps: &regex::Captures| {
                     let field = &caps[1];
                     let value = &caps[2];
@@ -101,8 +103,14 @@ impl OperatorConverter {
             (&from_config.operators.equal, &to_config.operators.equal),
             (&from_config.operators.and, &to_config.operators.and),
             (&from_config.operators.or, &to_config.operators.or),
-            (&from_config.operators.left_paren, &to_config.operators.left_paren),
-            (&from_config.operators.right_paren, &to_config.operators.right_paren),
+            (
+                &from_config.operators.left_paren,
+                &to_config.operators.left_paren,
+            ),
+            (
+                &from_config.operators.right_paren,
+                &to_config.operators.right_paren,
+            ),
         ];
 
         for (from_op, to_op) in operator_mappings {

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -29,8 +29,7 @@ impl HistoryStore {
 
 // 获取历史记录文件路径
 fn get_history_file_path() -> Result<PathBuf, String> {
-    let config_dir =
-        tauri::api::path::config_dir().ok_or_else(|| "无法获取配置目录".to_string())?;
+    let config_dir = dirs::config_dir().ok_or_else(|| "无法获取配置目录".to_string())?;
 
     let app_dir = config_dir.join("asset-mapping");
 
@@ -168,7 +167,7 @@ pub fn export_history_to_csv(export_path: &str) -> Result<String, String> {
         csv::Writer::from_path(&file_path).map_err(|e| format!("创建CSV文件失败: {}", e))?;
 
     // 写入表头
-    wtr.write_record(&[
+    wtr.write_record([
         "ID",
         "平台",
         "查询语句",
@@ -186,7 +185,7 @@ pub fn export_history_to_csv(export_path: &str) -> Result<String, String> {
         } else {
             "失败".to_string()
         };
-        wtr.write_record(&[
+        wtr.write_record([
             &record.id,
             &record.platform,
             &record.query,
@@ -226,7 +225,7 @@ impl ScanHistoryStore {
 }
 
 fn get_scan_history_file_path() -> Result<PathBuf, String> {
-    let app_dir = tauri::api::path::config_dir()
+    let app_dir = dirs::config_dir()
         .ok_or_else(|| "无法获取配置目录".to_string())?
         .join("asset-mapping");
     fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
@@ -273,5 +272,3 @@ pub fn get_scan_history() -> Result<Vec<ScanHistory>, String> {
     let store: ScanHistoryStore = serde_json::from_str(&content).map_err(|e| e.to_string())?;
     Ok(store.records)
 }
-
-use chrono::Local;

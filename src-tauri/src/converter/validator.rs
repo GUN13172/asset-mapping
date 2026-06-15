@@ -1,6 +1,14 @@
 use crate::config::PlatformConfig;
 use crate::error::{ConversionError, ConversionResult};
+use once_cell::sync::Lazy;
 use regex::Regex;
+
+static RE_LOGICAL_AND: Lazy<Regex> = Lazy::new(|| Regex::new(r"\band\b").unwrap());
+static RE_LOGICAL_OR: Lazy<Regex> = Lazy::new(|| Regex::new(r"\bor\b").unwrap());
+static RE_LOGICAL_NOT: Lazy<Regex> = Lazy::new(|| Regex::new(r"\bnot\b").unwrap());
+static RE_FIELD_OP: Lazy<Regex> = Lazy::new(|| Regex::new(r"\w+(?:\.\w+)*([=:])").unwrap());
+static RE_NOT_WORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"\bNOT\s+\w+").unwrap());
+static RE_FIELD_NAMES: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\w+(?:\.\w+)*)(?:[:=]|!=)").unwrap());
 
 /// Syntax validator for query statements
 pub struct SyntaxValidator;
@@ -9,19 +17,9 @@ impl SyntaxValidator {
     /// Normalize query by converting logical operators to uppercase
     pub fn normalize_query(query: &str) -> String {
         let mut normalized = query.to_string();
-
-        // Convert logical operators to uppercase using word boundaries
-        let replacements = [
-            (r"\band\b", "AND"),
-            (r"\bor\b", "OR"),
-            (r"\bnot\b", "NOT"),
-        ];
-
-        for (pattern, replacement) in replacements {
-            let re = Regex::new(pattern).unwrap();
-            normalized = re.replace_all(&normalized, replacement).to_string();
-        }
-
+        normalized = RE_LOGICAL_AND.replace_all(&normalized, "AND").to_string();
+        normalized = RE_LOGICAL_OR.replace_all(&normalized, "OR").to_string();
+        normalized = RE_LOGICAL_NOT.replace_all(&normalized, "NOT").to_string();
         normalized
     }
 
@@ -55,9 +53,7 @@ impl SyntaxValidator {
         let mut used_operators = std::collections::HashSet::new();
 
         // Extract all field operators from the query
-        let re = Regex::new(r"\w+(?:\.\w+)*([=:])").unwrap();
-
-        for caps in re.captures_iter(query) {
+        for caps in RE_FIELD_OP.captures_iter(query) {
             if let Some(op_match) = caps.get(1) {
                 used_operators.insert(op_match.as_str());
             }
@@ -131,8 +127,7 @@ impl SyntaxValidator {
         }
 
         // Check NOT operator
-        let not_re = Regex::new(r"\bNOT\s+\w+").unwrap();
-        if not_re.is_match(query) && from_config.operators.not_equal.trim() != "NOT" {
+        if RE_NOT_WORD.is_match(query) && from_config.operators.not_equal.trim() != "NOT" {
             return Err(ConversionError::UnsupportedOperator {
                 platform: platform_name.to_string(),
                 operator: "NOT".to_string(),
@@ -152,8 +147,6 @@ impl SyntaxValidator {
         Ok(())
     }
 
-
-
     /// Validate fields used in the query
     fn validate_fields(
         query: &str,
@@ -171,15 +164,16 @@ impl SyntaxValidator {
 
             // Then try to match by base field name (for compound fields like response.title)
             let base_field = if field_name.contains('.') {
-                field_name.split('.').last().unwrap_or(&field_name)
+                field_name.split('.').next_back().unwrap_or(&field_name)
             } else {
                 &field_name
             };
 
             // Check if the base field exists in config
-            let is_supported = from_config.fields.iter().any(|(config_field, _)| {
-                config_field == base_field
-            });
+            let is_supported = from_config
+                .fields
+                .iter()
+                .any(|(config_field, _)| config_field == base_field);
 
             if !is_supported {
                 return Err(ConversionError::UnsupportedField {
@@ -197,9 +191,7 @@ impl SyntaxValidator {
         let mut field_names = Vec::new();
 
         // Use regex to find all field names
-        let re = Regex::new(r"(\w+(?:\.\w+)*)(?:[:=]|!=)").unwrap();
-
-        for caps in re.captures_iter(query) {
+        for caps in RE_FIELD_NAMES.captures_iter(query) {
             if let Some(field_match) = caps.get(1) {
                 let field_str = field_match.as_str();
 
@@ -211,6 +203,4 @@ impl SyntaxValidator {
 
         field_names
     }
-
-
 }

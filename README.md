@@ -37,7 +37,7 @@
 - **样式**: CSS Variables + CSS Modules
 
 ### 后端
-- **框架**: Tauri 1.5
+- **框架**: Tauri 2
 - **语言**: Rust
 - **异步运行时**: Tokio
 - **HTTP 客户端**: Reqwest

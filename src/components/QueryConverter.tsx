@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Input, 
-  Select, 
-  Button, 
-  Space, 
-  Typography, 
+import {
+  Card,
+  Input,
+  Select,
+  Button,
+  Space,
+  Typography,
   message,
   Alert,
   Row,
@@ -22,7 +22,8 @@ import {
   ReloadOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
+import { normalizeSmartPunctuation } from '../utils/textInput';
 
 const { TextArea } = Input;
 const { Title, Text, Paragraph } = Typography;
@@ -83,7 +84,8 @@ const QueryConverter: React.FC = () => {
 
   // 验证查询语法
   const handleValidate = async () => {
-    if (!query.trim()) {
+    const normalizedQuery = normalizeSmartPunctuation(query).trim();
+    if (!normalizedQuery) {
       message.warning('请输入查询语句');
       return;
     }
@@ -91,9 +93,12 @@ const QueryConverter: React.FC = () => {
     try {
       setValidating(true);
       await invoke('validate_query_syntax', {
-        query: query.trim(),
+        query: normalizedQuery,
         platform: fromPlatform
       });
+      if (normalizedQuery !== query) {
+        setQuery(normalizedQuery);
+      }
       setValidationResult({ valid: true });
       message.success('查询语法验证通过！');
     } catch (error) {
@@ -106,7 +111,8 @@ const QueryConverter: React.FC = () => {
 
   // 转换查询语句
   const handleConvert = async () => {
-    if (!query.trim()) {
+    const normalizedQuery = normalizeSmartPunctuation(query).trim();
+    if (!normalizedQuery) {
       message.warning('请输入查询语句');
       return;
     }
@@ -123,7 +129,7 @@ const QueryConverter: React.FC = () => {
       if (conversionMode === 'all') {
         // 转换到所有平台
         const results = await invoke<ConversionResult[]>('convert_query_to_all', {
-          query: query.trim(),
+          query: normalizedQuery,
           fromPlatform: fromPlatform
         });
         setConversionResults(results);
@@ -131,12 +137,15 @@ const QueryConverter: React.FC = () => {
       } else {
         // 转换到指定平台
         const result = await invoke<string>('convert_query', {
-          query: query.trim(),
+          query: normalizedQuery,
           fromPlatform: fromPlatform,
           toPlatform: toPlatform
         });
         setConversionResults([{ platform: toPlatform, query: result }]);
         message.success('转换成功！');
+      }
+      if (normalizedQuery !== query) {
+        setQuery(normalizedQuery);
       }
     } catch (error) {
       message.error(`转换失败: ${error}`);
@@ -209,7 +218,7 @@ const QueryConverter: React.FC = () => {
         </div>
 
         {/* 输入区域 */}
-        <Card title="输入查询语句" loading={loading}>
+        <Card title="输入查询语句" className="glass-effect" bordered={false} loading={loading}>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Row gutter={16}>
               <Col span={12}>
@@ -276,7 +285,7 @@ const QueryConverter: React.FC = () => {
               <TextArea
                 value={query}
                 onChange={(e) => {
-                  setQuery(e.target.value);
+                  setQuery(normalizeSmartPunctuation(e.target.value));
                   setValidationResult(null);
                 }}
                 placeholder="输入查询语句，例如: ip=&quot;8.8.8.8&quot; && port=&quot;80&quot;"
@@ -344,7 +353,7 @@ const QueryConverter: React.FC = () => {
 
         {/* 转换结果 */}
         {conversionResults.length > 0 && (
-          <Card title="转换结果" extra={<Text type="secondary">{conversionResults.length} 个平台</Text>}>
+          <Card title="转换结果" className="glass-effect" bordered={false} extra={<Text type="secondary">{conversionResults.length} 个平台</Text>}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               {conversionResults.map((result) => (
                 <Card
@@ -371,9 +380,9 @@ const QueryConverter: React.FC = () => {
                     value={result.query}
                     readOnly
                     autoSize={{ minRows: 2, maxRows: 6 }}
-                    style={{ 
+                    style={{
                       fontFamily: 'monospace',
-                      backgroundColor: '#f5f5f5'
+                      backgroundColor: 'var(--bg-card)'
                     }}
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -386,7 +395,7 @@ const QueryConverter: React.FC = () => {
         )}
 
         {/* 帮助信息 */}
-        <Card title={<><InfoCircleOutlined style={{ marginRight: 8 }} />使用说明</>}>
+        <Card className="glass-effect" bordered={false} title={<><InfoCircleOutlined style={{ marginRight: 8 }} />使用说明</>}>
           <Space direction="vertical" size="small">
             <Text>1. 选择源平台并输入查询语句</Text>
             <Text>2. 选择转换模式（转换到所有平台或指定平台）</Text>

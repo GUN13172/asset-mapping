@@ -1,8 +1,8 @@
+use crate::error::{ConversionError, ConversionResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use crate::error::{ConversionError, ConversionResult};
 
 /// Platform operators configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,18 +31,22 @@ pub struct ConfigManager {
 impl ConfigManager {
     /// Load configuration from JSON file
     pub fn from_file<P: AsRef<Path>>(config_path: P) -> ConversionResult<Self> {
-        let config_content = fs::read_to_string(config_path)
-            .map_err(|e| ConversionError::ConfigurationError(format!("Failed to read config file: {}", e)))?;
-        
+        let config_content = fs::read_to_string(config_path).map_err(|e| {
+            ConversionError::ConfigurationError(format!("Failed to read config file: {}", e))
+        })?;
+
         let configs: HashMap<String, PlatformConfig> = serde_json::from_str(&config_content)
-            .map_err(|e| ConversionError::ConfigurationError(format!("Failed to parse config file: {}", e)))?;
-        
+            .map_err(|e| {
+                ConversionError::ConfigurationError(format!("Failed to parse config file: {}", e))
+            })?;
+
         Ok(Self { configs })
     }
 
     /// Get configuration for a specific platform
     pub fn get_platform_config(&self, platform: &str) -> ConversionResult<&PlatformConfig> {
-        self.configs.get(platform)
+        self.configs
+            .get(platform)
             .ok_or_else(|| ConversionError::UnsupportedPlatform(platform.to_string()))
     }
 

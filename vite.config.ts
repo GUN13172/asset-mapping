@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+  // 生产构建使用相对路径，兼容 Tauri custom-protocol
+  base: './',
   // prevent vite from obscuring rust errors
   clearScreen: false,
   // tauri expects a fixed port, fail if that port is not available
@@ -13,7 +14,7 @@ export default defineConfig({
     strictPort: true,
   },
   // to make use of `TAURI_DEBUG` and other env variables
-  // https://tauri.studio/v1/api/config#buildconfig.beforedevcommand
+  // https://v2.tauri.app/reference/config/#buildconfig
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
     // Tauri supports es2021

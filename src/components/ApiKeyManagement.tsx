@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Tabs, Input, Button, Table, Form, Modal, message, Popconfirm, Tag, Space } from 'antd';
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ApiKey {
   key: string;
@@ -28,9 +28,9 @@ const ApiKeyManagement: React.FC = () => {
     try {
       const result = await invoke('get_api_keys', { platform });
       const data = result as { api_keys: string[], emails?: string[] };
-      
+
       let keys: ApiKey[] = [];
-      
+
       if (platform === 'fofa' && data.emails) {
         // FOFA平台需要同时处理API密钥和邮箱
         keys = data.api_keys.map((key, index) => ({
@@ -45,7 +45,7 @@ const ApiKeyManagement: React.FC = () => {
           status: 'unknown'
         }));
       }
-      
+
       setApiKeys(keys);
     } catch (error) {
       console.error('获取API密钥出错:', error);
@@ -64,7 +64,7 @@ const ApiKeyManagement: React.FC = () => {
           .split('\n')
           .map(k => k.trim())
           .filter(k => k.length > 0);
-        
+
         if (keys.length === 0) {
           message.warning('请输入至少一个API密钥');
           return;
@@ -78,15 +78,15 @@ const ApiKeyManagement: React.FC = () => {
         for (const key of keys) {
           try {
             if (platform === 'fofa' && values.email) {
-              await invoke('add_api_key', { 
-                platform, 
+              await invoke('add_api_key', {
+                platform,
                 apiKey: key,
-                email: values.email 
+                email: values.email
               });
             } else {
-              await invoke('add_api_key', { 
-                platform, 
-                apiKey: key 
+              await invoke('add_api_key', {
+                platform,
+                apiKey: key
               });
             }
             successCount++;
@@ -97,13 +97,13 @@ const ApiKeyManagement: React.FC = () => {
         }
 
         message.destroy();
-        
+
         if (failCount === 0) {
           message.success(`成功添加 ${successCount} 个API密钥`);
         } else {
           message.warning(`成功: ${successCount} 个, 失败: ${failCount} 个`);
         }
-        
+
         setIsModalVisible(false);
         form.resetFields();
         fetchApiKeys();
@@ -112,18 +112,18 @@ const ApiKeyManagement: React.FC = () => {
 
       // 单个添加模式
       if (platform === 'fofa' && values.email) {
-        await invoke('add_api_key', { 
-          platform, 
+        await invoke('add_api_key', {
+          platform,
           apiKey: values.apiKey,
-          email: values.email 
+          email: values.email
         });
       } else {
-        await invoke('add_api_key', { 
-          platform, 
-          apiKey: values.apiKey 
+        await invoke('add_api_key', {
+          platform,
+          apiKey: values.apiKey
         });
       }
-      
+
       message.success('API密钥添加成功');
       setIsModalVisible(false);
       form.resetFields();
@@ -138,18 +138,18 @@ const ApiKeyManagement: React.FC = () => {
   const deleteApiKey = async (apiKey: string, email?: string) => {
     try {
       if (platform === 'fofa' && email) {
-        await invoke('delete_api_key', { 
-          platform, 
+        await invoke('delete_api_key', {
+          platform,
           apiKey: apiKey,
-          email 
+          email
         });
       } else {
-        await invoke('delete_api_key', { 
-          platform, 
-          apiKey: apiKey 
+        await invoke('delete_api_key', {
+          platform,
+          apiKey: apiKey
         });
       }
-      
+
       message.success('API密钥删除成功');
       fetchApiKeys();
     } catch (error) {
@@ -162,22 +162,22 @@ const ApiKeyManagement: React.FC = () => {
   const validateApiKey = async (apiKey: string, email?: string) => {
     try {
       let result;
-      
+
       if (platform === 'fofa' && email) {
-        result = await invoke('validate_api_key', { 
-          platform, 
+        result = await invoke('validate_api_key', {
+          platform,
           apiKey: apiKey,
-          email 
+          email
         });
       } else {
-        result = await invoke('validate_api_key', { 
-          platform, 
-          apiKey: apiKey 
+        result = await invoke('validate_api_key', {
+          platform,
+          apiKey: apiKey
         });
       }
-      
+
       const data = result as { valid: boolean, message?: string, quota?: string };
-      
+
       // 更新API密钥状态
       setApiKeys(prev => prev.map(item => {
         if (item.key === apiKey) {
@@ -189,7 +189,7 @@ const ApiKeyManagement: React.FC = () => {
         }
         return item;
       }));
-      
+
       if (data.valid) {
         message.success(`API密钥有效${data.quota ? `，剩余额度: ${data.quota}` : ''}`);
       } else {
@@ -207,10 +207,10 @@ const ApiKeyManagement: React.FC = () => {
       message.warning('没有API密钥可验证');
       return;
     }
-    
+
     setLoading(true);
     message.loading('正在验证所有API密钥...', 0);
-    
+
     try {
       for (const item of apiKeys) {
         await validateApiKey(item.key, item.email);
@@ -235,7 +235,7 @@ const ApiKeyManagement: React.FC = () => {
         key: 'key',
         render: (text: string) => {
           // 显示掩码版本的API密钥
-          const masked = text.length > 8 
+          const masked = text.length > 8
             ? `${text.substring(0, 4)}...${text.substring(text.length - 4)}`
             : text;
           return masked;
@@ -265,8 +265,8 @@ const ApiKeyManagement: React.FC = () => {
         key: 'action',
         render: (_: any, record: ApiKey) => (
           <Space size="middle">
-            <Button 
-              size="small" 
+            <Button
+              size="small"
               type="primary"
               icon={<CheckCircleOutlined />}
               onClick={() => validateApiKey(record.key, record.email)}
@@ -280,8 +280,8 @@ const ApiKeyManagement: React.FC = () => {
               cancelText="取消"
               icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
             >
-              <Button 
-                size="small" 
+              <Button
+                size="small"
                 danger
                 icon={<DeleteOutlined />}
               >
@@ -292,7 +292,7 @@ const ApiKeyManagement: React.FC = () => {
         )
       }
     ];
-    
+
     // FOFA平台需要额外显示邮箱列
     if (platform === 'fofa') {
       return [
@@ -305,7 +305,7 @@ const ApiKeyManagement: React.FC = () => {
         ...baseColumns.slice(1)
       ];
     }
-    
+
     return baseColumns;
   };
 
@@ -318,19 +318,20 @@ const ApiKeyManagement: React.FC = () => {
   ];
 
   return (
-    <Card 
-      title="API密钥管理" 
-      variant="outlined"
+    <Card
+      title="API密钥管理"
+      className="glass-effect"
+      bordered={false}
       extra={
         <Space>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<PlusOutlined />}
             onClick={() => setIsModalVisible(true)}
           >
             添加API密钥
           </Button>
-          <Button 
+          <Button
             onClick={validateAllApiKeys}
             loading={loading}
           >
@@ -340,21 +341,21 @@ const ApiKeyManagement: React.FC = () => {
       }
     >
       <Tabs activeKey={platform} onChange={setPlatform} items={tabItems} />
-      
-      <Table 
-        columns={getColumns()} 
+
+      <Table
+        columns={getColumns()}
         dataSource={apiKeys}
         rowKey="key"
         loading={loading}
         pagination={false}
       />
-      
+
       <Modal
         title={
           <Space>
             <span>添加API密钥</span>
-            <Button 
-              type="link" 
+            <Button
+              type="link"
               size="small"
               onClick={() => {
                 setIsBatchMode(!isBatchMode);
@@ -392,13 +393,13 @@ const ApiKeyManagement: React.FC = () => {
                 }
                 rules={[{ required: true, message: '请输入API密钥列表' }]}
               >
-                <Input.TextArea 
+                <Input.TextArea
                   placeholder={`请输入${platform.toUpperCase()} API密钥，每行一个\n例如：\nkey1\nkey2\nkey3`}
                   rows={8}
                   style={{ fontFamily: 'monospace' }}
                 />
               </Form.Item>
-              
+
               {platform === 'fofa' && (
                 <Form.Item
                   name="email"
@@ -423,7 +424,7 @@ const ApiKeyManagement: React.FC = () => {
               >
                 <Input placeholder={`请输入${platform.toUpperCase()} API密钥`} />
               </Form.Item>
-              
+
               {platform === 'fofa' && (
                 <Form.Item
                   name="email"
@@ -438,7 +439,7 @@ const ApiKeyManagement: React.FC = () => {
               )}
             </>
           )}
-          
+
           <Form.Item>
             <Button type="primary" htmlType="submit" block size="large">
               {isBatchMode ? '批量添加' : '添加'}

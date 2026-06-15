@@ -14,8 +14,8 @@ import {
     RocketOutlined
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { invoke } from '@tauri-apps/api/tauri';
-import { open } from '@tauri-apps/api/dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 
 const { Text, Title } = Typography;
 const { Sider, Content } = Layout;

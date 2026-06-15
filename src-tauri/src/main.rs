@@ -12,21 +12,40 @@ mod history;
 mod pocs;
 mod utils;
 
+/// 平台分发宏——统一处理 4 个平台的 match 分发
+macro_rules! dispatch_platform {
+    ($platform:expr, $method:ident, $($arg:expr),* $(,)?) => {
+        match $platform {
+            "hunter" => api::hunter::$method($($arg),*).await,
+            "fofa" => api::fofa::$method($($arg),*).await,
+            "quake" => api::quake::$method($($arg),*).await,
+            "daydaymap" => api::daydaymap::$method($($arg),*).await,
+            _ => Err("不支持的平台".to_string()),
+        }
+    };
+}
+
 use config::ConfigManager;
 use converter::QueryConverter;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::api::dialog;
-use tauri::{AppHandle, Window};
+use std::sync::atomic::{AtomicBool, Ordering};
+use tauri::Emitter;
+use tauri::{AppHandle, Manager};
+
+/// 全局扫描取消标志
+static SCAN_CANCEL_FLAG: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
 
 // 获取配置文件路径的辅助函数
 fn get_config_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     // 在开发模式下，使用src-tauri目录下的config.json
     // 在生产模式下，使用resource目录下的config.json
     let resource_path = app_handle
-        .path_resolver()
-        .resolve_resource("config.json")
-        .ok_or_else(|| "无法找到配置文件".to_string())?;
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("无法获取资源目录: {}", e))?
+        .join("config.json");
 
     Ok(resource_path)
 }
@@ -41,6 +60,56 @@ struct Settings {
     auto_validate_api_keys: bool,
     theme: String,
     language: String,
+    #[serde(default)]
+    allow_insecure_tls: bool,
+    // 代理配置
+    #[serde(default)]
+    proxy_enabled: bool,
+    #[serde(default)]
+    proxy_url: String,
+    #[serde(default)]
+    proxy_username: String,
+    #[serde(default)]
+    proxy_password: String,
+    // 请求超时（秒）
+    #[serde(default = "default_timeout")]
+    request_timeout: u32,
+}
+
+fn default_timeout() -> u32 {
+    30
+}
+
+/// 创建带代理配置的 HTTP Client（全局工厂函数）
+pub fn create_http_client() -> Result<reqwest::Client, String> {
+    let settings = config::get_settings()?;
+    let timeout_secs = if settings.request_timeout > 0 {
+        settings.request_timeout as u64
+    } else {
+        30
+    };
+    let mut builder =
+        reqwest::Client::builder().timeout(std::time::Duration::from_secs(timeout_secs));
+
+    if settings.allow_insecure_tls {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+
+    if settings.proxy_enabled && !settings.proxy_url.is_empty() {
+        let mut proxy =
+            reqwest::Proxy::all(&settings.proxy_url).map_err(|e| format!("代理地址无效: {}", e))?;
+
+        // 如果配置了用户名密码，添加认证
+        if !settings.proxy_username.is_empty() {
+            proxy = proxy.basic_auth(&settings.proxy_username, &settings.proxy_password);
+        }
+
+        builder = builder.proxy(proxy);
+    }
+
+    builder
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))
 }
 
 // API密钥验证结果
@@ -88,7 +157,7 @@ pub struct VulnerabilityResult {
 }
 
 // 发送进度事件的辅助函数
-fn emit_progress(window: &Window, event: &ProgressEvent) {
+fn emit_progress(window: &tauri::WebviewWindow, event: &ProgressEvent) {
     let _ = window.emit("export-progress", event);
 }
 
@@ -100,20 +169,13 @@ async fn search_assets(
     page: u32,
     page_size: u32,
 ) -> Result<serde_json::Value, String> {
-    // 添加调试日志
-    eprintln!("=== search_assets 调用 ===");
-    eprintln!("平台: {}", platform);
-    eprintln!("查询: {}", query);
-    eprintln!("页码: {}", page);
-    eprintln!("每页数量: {}", page_size);
+    #[cfg(debug_assertions)]
+    eprintln!(
+        "[DEBUG] search_assets: platform={}, query={}, page={}, page_size={}",
+        platform, query, page, page_size
+    );
 
-    let result = match platform.as_str() {
-        "hunter" => api::hunter::search(&query, page, page_size).await,
-        "fofa" => api::fofa::search(&query, page, page_size).await,
-        "quake" => api::quake::search(&query, page, page_size).await,
-        "daydaymap" => api::daydaymap::search(&query, page, page_size).await,
-        _ => Err("不支持的平台".to_string()),
-    };
+    let result = dispatch_platform!(platform.as_str(), search, &query, page, page_size);
 
     // 保存历史记录
     match &result {
@@ -147,8 +209,9 @@ async fn search_assets(
 
 // 导出当前查询结果（带进度事件）
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn export_results_with_progress(
-    window: Window,
+    window: tauri::WebviewWindow,
     task_id: String,
     platform: String,
     query: String,
@@ -157,6 +220,7 @@ async fn export_results_with_progress(
     _time_range: String,
     _start_date: Option<String>,
     _end_date: Option<String>,
+    format: Option<String>,
 ) -> Result<String, String> {
     let export_path = config::get_export_path()?;
 
@@ -322,15 +386,20 @@ async fn export_results_with_progress(
         return Err("未获取到任何数据".to_string());
     }
 
-    // 保存CSV
+    // 根据导出格式保存文件
+    let export_format = format.unwrap_or_else(|| "csv".to_string());
     emit_progress(
         &window,
         &ProgressEvent {
             task_id: task_id.clone(),
             percent: 95.0,
             status: "running".to_string(),
-            status_text: "正在保存CSV文件...".to_string(),
-            log_message: Some(format!("正在写入 {} 条数据到CSV...", all_results.len())),
+            status_text: format!("正在保存{}文件...", export_format.to_uppercase()),
+            log_message: Some(format!(
+                "正在写入 {} 条数据到{}...",
+                all_results.len(),
+                export_format.to_uppercase()
+            )),
             log_type: Some("info".to_string()),
             current_page: None,
             total_pages: Some(pages),
@@ -340,10 +409,15 @@ async fn export_results_with_progress(
     );
 
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    let file_path = format!("{}/{}_export_{}.csv", export_path, platform, timestamp);
+    let file_path = format!(
+        "{}/{}_export_{}.{}",
+        export_path, platform, timestamp, export_format
+    );
 
-    // 使用各平台的 save_to_csv 或通用方式
-    save_results_to_csv(&file_path, &all_results)?;
+    match export_format.as_str() {
+        "json" => save_results_to_json(&file_path, &all_results)?,
+        _ => save_results_to_csv(&file_path, &all_results)?,
+    }
 
     emit_progress(
         &window,
@@ -410,6 +484,21 @@ fn save_results_to_csv(file_path: &str, results: &[serde_json::Value]) -> Result
     Ok(())
 }
 
+// 将结果保存为 JSON 文件
+fn save_results_to_json(file_path: &str, results: &[serde_json::Value]) -> Result<(), String> {
+    let export_dir = std::path::Path::new(file_path)
+        .parent()
+        .ok_or_else(|| "无效的文件路径".to_string())?;
+    if !export_dir.exists() {
+        std::fs::create_dir_all(export_dir).map_err(|e| format!("创建目录失败: {}", e))?;
+    }
+
+    let json_content =
+        serde_json::to_string_pretty(results).map_err(|e| format!("序列化JSON失败: {}", e))?;
+    std::fs::write(file_path, json_content).map_err(|e| format!("写入JSON文件失败: {}", e))?;
+    Ok(())
+}
+
 // 导出当前查询结果
 #[tauri::command]
 async fn export_results(
@@ -423,57 +512,17 @@ async fn export_results(
 ) -> Result<(), String> {
     let export_path = config::get_export_path()?;
 
-    match platform.as_str() {
-        "hunter" => {
-            api::hunter::export(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        "fofa" => {
-            api::fofa::export(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        "quake" => {
-            api::quake::export(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        "daydaymap" => {
-            api::daydaymap::export(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        _ => Err("不支持的平台".to_string()),
-    }
+    dispatch_platform!(
+        platform.as_str(),
+        export,
+        &query,
+        pages,
+        page_size,
+        &time_range,
+        start_date,
+        end_date,
+        &export_path,
+    )
 }
 
 // 导出平台全部资产
@@ -489,57 +538,17 @@ async fn export_platform_all(
 ) -> Result<(), String> {
     let export_path = config::get_export_path()?;
 
-    match platform.as_str() {
-        "hunter" => {
-            api::hunter::export_all(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        "fofa" => {
-            api::fofa::export_all(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        "quake" => {
-            api::quake::export_all(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        "daydaymap" => {
-            api::daydaymap::export_all(
-                &query,
-                pages,
-                page_size,
-                &time_range,
-                start_date,
-                end_date,
-                &export_path,
-            )
-            .await
-        }
-        _ => Err("不支持的平台".to_string()),
-    }
+    dispatch_platform!(
+        platform.as_str(),
+        export_all,
+        &query,
+        pages,
+        page_size,
+        &time_range,
+        start_date,
+        end_date,
+        &export_path,
+    )
 }
 
 // 导出所有平台资产
@@ -645,14 +654,17 @@ fn save_settings(settings: Settings) -> Result<(), String> {
 
 // 选择目录
 #[tauri::command]
-async fn select_directory() -> Result<String, String> {
-    let path = dialog::blocking::FileDialogBuilder::default()
-        .set_title("选择导出目录")
-        .set_directory("~")
-        .pick_folder();
+async fn select_directory(app_handle: AppHandle) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
 
-    match path {
-        Some(path) => Ok(path.to_string_lossy().to_string()),
+    let folder = app_handle
+        .dialog()
+        .file()
+        .set_title("选择导出目录")
+        .blocking_pick_folder();
+
+    match folder {
+        Some(path) => Ok(path.to_string()),
         None => Err("未选择目录".to_string()),
     }
 }
@@ -813,11 +825,17 @@ fn export_query_history(export_path: String) -> Result<String, String> {
 
 // 漏洞扫描
 #[tauri::command]
-async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<(), String> {
+async fn run_vulnerability_scan(
+    window: tauri::WebviewWindow,
+    config: ScanConfig,
+) -> Result<(), String> {
     let task_id = format!("scan_{}", chrono::Utc::now().timestamp());
     let targets_count = config.targets.len();
 
     tauri::async_runtime::spawn(async move {
+        // 重置取消标志
+        SCAN_CANCEL_FLAG.store(false, Ordering::Relaxed);
+
         // 1. 启动阶段
         emit_progress(
             &window,
@@ -835,7 +853,26 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
             },
         );
 
+        let mut total_vul_count: u32 = 0;
+
         for (i, target) in config.targets.iter().enumerate() {
+            // 检查取消标志
+            if SCAN_CANCEL_FLAG.load(Ordering::Relaxed) {
+                emit_progress(
+                    &window,
+                    &ProgressEvent {
+                        task_id: task_id.clone(),
+                        percent: (i as f64 / targets_count as f64) * 100.0,
+                        status: "cancelled".to_string(),
+                        status_text: "扫描已被用户取消".to_string(),
+                        log_message: Some("用户已取消扫描任务。".to_string()),
+                        log_type: Some("warning".to_string()),
+                        ..Default::default()
+                    },
+                );
+                return;
+            }
+
             let progress = (i as f64 / targets_count as f64) * 100.0;
 
             emit_progress(
@@ -856,7 +893,7 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
 
             // 构造命令: nuclei -u <target> -json -timeout <timeout>
             let mut cmd = tokio::process::Command::new("nuclei");
-            cmd.arg("-u").arg(&target);
+            cmd.arg("-u").arg(target);
             cmd.arg("-json");
             cmd.arg("-timeout").arg(config.timeout.to_string());
             cmd.arg("-c").arg(config.threads.to_string());
@@ -868,8 +905,8 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
                 }
             }
 
-            // Debug log: Print the command
-            println!("Executing command: {:?}", cmd);
+            #[cfg(debug_assertions)]
+            eprintln!("[DEBUG] Executing nuclei command: {:?}", cmd);
             emit_progress(
                 &window,
                 &ProgressEvent {
@@ -896,24 +933,42 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
                     emit_progress(&window, &ProgressEvent {
                         task_id: task_id.clone(),
                         percent: progress,
-                        status: "running".to_string(),
+                        status: "error".to_string(),
                         status_text: "引擎启动失败".to_string(),
                         log_message: Some(format!("发生错误: 无法运行 nuclei 二进制文件 ({})，请确保已安装并加入 PATH。", e)),
                         log_type: Some("error".to_string()),
                         ..Default::default()
                     });
-                    continue;
+                    return;
                 }
             };
 
             use tokio::io::{AsyncBufReadExt, BufReader};
 
             // 处理 stdout
-            let stdout = child.stdout.take().unwrap();
+            let stdout = match child.stdout.take() {
+                Some(s) => s,
+                None => {
+                    let _ = window.emit("scan-error", serde_json::json!({
+                        "taskId": task_id,
+                        "error": "无法获取 nuclei stdout"
+                    }));
+                    return;
+                }
+            };
             let mut reader = BufReader::new(stdout).lines();
 
             // 处理 stderr (在一个单独的任务中读取，防止阻塞)
-            let stderr = child.stderr.take().unwrap();
+            let stderr = match child.stderr.take() {
+                Some(s) => s,
+                None => {
+                    let _ = window.emit("scan-error", serde_json::json!({
+                        "taskId": task_id,
+                        "error": "无法获取 nuclei stderr"
+                    }));
+                    return;
+                }
+            };
             let mut stderr_reader = BufReader::new(stderr).lines();
             let window_clone = window.clone();
             let task_id_clone = task_id.clone();
@@ -948,7 +1003,7 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
                     let res = VulnerabilityResult {
                         target: vul_entry["matched-at"]
                             .as_str()
-                            .unwrap_or(&target)
+                            .unwrap_or(target)
                             .to_string(),
                         poc_name: vul_entry["info"]["name"]
                             .as_str()
@@ -961,6 +1016,7 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
                         matched_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
                     };
                     let _ = window.emit("vulnerability-found", res);
+                    total_vul_count += 1;
                 } else {
                     // 非 JSON 输出（可能是旧版本或普通日志），打印出来
                     // println!("Nuclei stdout: {}", line);
@@ -971,7 +1027,7 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
         }
 
         // 3. 完成阶段
-        let _ = history::add_scan_history(config.targets.clone(), 0, "success".to_string()); // vul_count can be further refined
+        let _ = history::add_scan_history(config.targets.clone(), total_vul_count, "success".to_string());
         emit_progress(
             &window,
             &ProgressEvent {
@@ -992,6 +1048,63 @@ async fn run_vulnerability_scan(window: Window, config: ScanConfig) -> Result<()
     Ok(())
 }
 
+/// 取消正在进行的漏洞扫描
+#[tauri::command]
+fn cancel_vulnerability_scan() -> Result<(), String> {
+    SCAN_CANCEL_FLAG.store(true, Ordering::Relaxed);
+    Ok(())
+}
+
+/// 测试代理连通性
+#[tauri::command]
+async fn test_proxy(
+    proxy_url: String,
+    username: String,
+    password: String,
+    allow_insecure_tls: bool,
+) -> Result<String, String> {
+    let mut builder = reqwest::Client::builder().timeout(std::time::Duration::from_secs(10));
+
+    if allow_insecure_tls {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+
+    if !proxy_url.is_empty() {
+        let mut proxy =
+            reqwest::Proxy::all(&proxy_url).map_err(|e| format!("代理地址无效: {}", e))?;
+
+        if !username.is_empty() {
+            proxy = proxy.basic_auth(&username, &password);
+        }
+
+        builder = builder.proxy(proxy);
+    } else {
+        return Err("请输入代理地址".to_string());
+    }
+
+    let client = builder
+        .build()
+        .map_err(|e| format!("创建客户端失败: {}", e))?;
+
+    let resp = client
+        .get("https://httpbin.org/ip")
+        .send()
+        .await
+        .map_err(|e| format!("连接失败: {}", e))?;
+
+    let status = resp.status();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    if status.is_success() {
+        Ok(format!("代理连通成功！出口 IP: {}", body.trim()))
+    } else {
+        Err(format!("代理响应异常: HTTP {}", status))
+    }
+}
+
 #[tauri::command]
 async fn get_scan_history() -> Result<Vec<history::ScanHistory>, String> {
     history::get_scan_history()
@@ -1008,11 +1121,11 @@ async fn export_scan_results(results: Vec<VulnerabilityResult>) -> Result<String
     let file_path = format!("{}/scan_results_{}.csv", export_path, timestamp);
 
     let mut wtr = csv::Writer::from_path(&file_path).map_err(|e| e.to_string())?;
-    wtr.write_record(&["目标", "POC名称", "等级", "发现时间"])
+    wtr.write_record(["目标", "POC名称", "等级", "发现时间"])
         .map_err(|e| e.to_string())?;
 
     for res in results {
-        wtr.write_record(&[&res.target, &res.poc_name, &res.severity, &res.matched_at])
+        wtr.write_record([&res.target, &res.poc_name, &res.severity, &res.matched_at])
             .map_err(|e| e.to_string())?;
     }
 
@@ -1070,12 +1183,8 @@ async fn send_raw_http(raw_request: String) -> Result<RawHttpResponse, String> {
     if host.is_empty() {
         return Err("请求缺少 Host 头".to_string());
     }
-    let protocol = if headers.contains_key("referer")
-        && headers["referer"]
-            .to_str()
-            .unwrap_or("")
-            .starts_with("https")
-    {
+    // 通过端口推断协议
+    let protocol = if host.contains(":443") || host.ends_with(":8443") {
         "https"
     } else {
         "http"
@@ -1094,10 +1203,7 @@ async fn send_raw_http(raw_request: String) -> Result<RawHttpResponse, String> {
     }
 
     // 5. 发送请求
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = create_http_client()?;
 
     let req_method = match method.as_str() {
         "GET" => reqwest::Method::GET,
@@ -1173,6 +1279,10 @@ async fn import_local_pocs(path: Option<String>) -> Result<Vec<pocs::PocTemplate
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             search_assets,
             export_results,
@@ -1198,6 +1308,8 @@ fn main() {
             clear_all_history,
             export_query_history,
             run_vulnerability_scan,
+            cancel_vulnerability_scan,
+            test_proxy,
             send_raw_http,
             get_scan_history,
             export_scan_results,

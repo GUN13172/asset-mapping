@@ -1,27 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Tabs, Input, Button, Select, DatePicker, Radio, Form, message, Space, Divider, Alert } from 'antd';
+import React, { useState } from 'react';
+import { Card, Tabs, Input, Button, Select, DatePicker, Radio, Form, message, Space, Divider, Alert, InputNumber } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
-import { invoke } from '@tauri-apps/api/tauri';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import type { RadioChangeEvent } from 'antd';
 import dayjs from 'dayjs';
-import ProgressModal, { ProgressStatus, ProgressLog } from './ProgressModal';
+import ProgressModal from './ProgressModal';
+import { endPerf, startPerf } from '../utils/perf';
+import { normalizeSmartPunctuation } from '../utils/textInput';
 
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-interface ProgressEventPayload {
-  taskId: string;
-  percent: number;
-  status: string;
-  statusText: string;
-  logMessage?: string;
-  logType?: string;
-  currentPage?: number;
-  totalPages?: number;
-  totalResults?: number;
-  fetchedResults?: number;
-}
+import { useExportProgress } from '../hooks/useExportProgress';
 
 const ExportData: React.FC = () => {
   const [platform, setPlatform] = useState<string>('hunter');
@@ -32,51 +22,10 @@ const ExportData: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
   const [loading, setLoading] = useState<boolean>(false);
   const [exportType, setExportType] = useState<'current' | 'platform' | 'all'>('current');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
 
-  // 导出进度弹窗状态
-  const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [exportStatus, setExportStatus] = useState<ProgressStatus>('idle');
-  const [exportPercent, setExportPercent] = useState(0);
-  const [exportStatusText, setExportStatusText] = useState('');
-  const [exportLogs, setExportLogs] = useState<ProgressLog[]>([]);
-  const [exportSummary, setExportSummary] = useState<{ label: string; value: string | number }[]>([]);
-
-  const unlistenRef = useRef<UnlistenFn | null>(null);
-
-  // 监听导出进度事件
-  useEffect(() => {
-    const setupListener = async () => {
-      unlistenRef.current = await listen<ProgressEventPayload>('export-progress', (event) => {
-        const data = event.payload;
-        setExportPercent(data.percent);
-        setExportStatus(data.status as ProgressStatus);
-        setExportStatusText(data.statusText);
-
-        if (data.logMessage) {
-          const now = new Date().toLocaleTimeString();
-          setExportLogs(prev => [...prev, {
-            time: now,
-            message: data.logMessage!,
-            type: (data.logType || 'info') as ProgressLog['type'],
-          }]);
-        }
-
-        const summaryItems: { label: string; value: string | number }[] = [];
-        if (data.totalPages != null) summaryItems.push({ label: '总页数', value: data.totalPages });
-        if (data.currentPage != null) summaryItems.push({ label: '当前页', value: data.currentPage });
-        if (data.totalResults != null) summaryItems.push({ label: '总结果数', value: data.totalResults });
-        if (data.fetchedResults != null) summaryItems.push({ label: '已获取', value: data.fetchedResults });
-        if (summaryItems.length > 0) setExportSummary(summaryItems);
-      });
-    };
-    setupListener();
-
-    return () => {
-      if (unlistenRef.current) {
-        unlistenRef.current();
-      }
-    };
-  }, []);
+  // 导出进度 hook
+  const exportProgress = useExportProgress();
 
   // 平台查询语法提示
   const placeholders = {
@@ -112,9 +61,13 @@ const ExportData: React.FC = () => {
 
   // 执行导出（带进度弹窗）
   const handleExport = async () => {
-    if (!query) {
+    const normalizedQuery = normalizeSmartPunctuation(query).trim();
+    if (!normalizedQuery) {
       message.warning('请输入查询语句');
       return;
+    }
+    if (normalizedQuery !== query) {
+      setQuery(normalizedQuery);
     }
 
     const taskId = `export_${Date.now()}`;
@@ -123,10 +76,11 @@ const ExportData: React.FC = () => {
     const params: any = {
       taskId,
       platform,
-      query,
+      query: normalizedQuery,
       pages,
       pageSize,
       timeRange,
+      format: exportFormat,
     };
 
     // 如果是自定义时间范围，添加开始和结束日期
@@ -136,16 +90,15 @@ const ExportData: React.FC = () => {
     }
 
     // 重置并打开进度弹窗
-    setExportModalOpen(true);
-    setExportStatus('running');
-    setExportPercent(0);
-    setExportStatusText('正在准备导出...');
-    setExportLogs([{
-      time: new Date().toLocaleTimeString(),
-      message: `开始导出: 类型=${exportType}, 平台=${platform}, 页数=${pages}`,
-      type: 'info',
-    }]);
-    setExportSummary([]);
+    exportProgress.startTask(taskId, `开始导出: 类型=${exportType}, 平台=${platform}, 页数=${pages}`);
+    const exportPerfToken = startPerf('asset-export', {
+      source: 'export-center',
+      exportType,
+      platform,
+      pages,
+      pageSize,
+      format: exportFormat,
+    });
 
     setLoading(true);
     try {
@@ -153,38 +106,82 @@ const ExportData: React.FC = () => {
       if (exportType === 'current' || exportType === 'platform') {
         const filePath = await invoke<string>('export_results_with_progress', params);
         message.success(`导出成功: ${filePath}`);
-      } else {
-        // "all" 类型暂时使用原有命令（不带进度事件）
-        // 手动模拟进度
-        setExportStatusText('正在导出所有平台数据...');
-        await invoke('export_all_platforms', {
-          query,
-          pages,
-          pageSize,
-          timeRange,
-          ...(params.startDate ? { startDate: params.startDate, endDate: params.endDate } : {}),
+        endPerf(exportPerfToken, {
+          source: 'export-center',
+          exportType,
+          platform,
+          status: 'success',
         });
-        setExportPercent(100);
-        setExportStatus('success');
-        setExportStatusText('所有平台导出完成！');
-        setExportLogs(prev => [...prev, {
-          time: new Date().toLocaleTimeString(),
-          message: '✓ 所有平台导出完成',
-          type: 'success',
-        }]);
-        message.success('导出成功');
+      } else {
+        // "all" 类型：按顺序调用各平台导出，确保进度弹窗一致
+        exportProgress.setStatusText('正在准备导出所有平台...');
+        const platforms = ['hunter', 'fofa', 'quake', 'daydaymap'];
+        // 因为没有指定源平台，我们假设当前选中的标签页就是源平台
+        const sourcePlatform = platform;
+
+        for (let i = 0; i < platforms.length; i++) {
+          const targetPlatform = platforms[i];
+          let convertedQuery = normalizedQuery;
+
+          // 尝试将语法适应目标平台
+          if (sourcePlatform !== targetPlatform) {
+            try {
+              const convertRes = await invoke<{ platform: string, query: string }[]>('convert_query_to_all', {
+                query: normalizedQuery,
+                fromPlatform: sourcePlatform,
+              });
+              const target = convertRes.find(r => r.platform === targetPlatform);
+              if (target) {
+                convertedQuery = target.query;
+              }
+            } catch (e) {
+              exportProgress.addLog(`⚠ ${targetPlatform} 查询语法转换提示: ${e}`, 'warning');
+              // 继续往下走，也许语法本就兼容
+            }
+          }
+
+          exportProgress.setStatusText(`正在导出 ${targetPlatform} 平台数据 (${i + 1}/${platforms.length})...`);
+          try {
+            const filePath = await invoke<string>('export_results_with_progress', {
+              ...params,
+              platform: targetPlatform,
+              query: convertedQuery,
+              taskId: `${taskId}_${targetPlatform}`,
+            });
+            exportProgress.addLog(`✓ ${targetPlatform} 导出成功: ${filePath}`, 'success');
+          } catch (err: any) {
+            exportProgress.addLog(`✗ ${targetPlatform} 导出失败: ${err}`, 'error');
+          }
+        }
+
+        exportProgress.setPercent(100);
+        exportProgress.setStatus('success');
+        exportProgress.setStatusText('所有平台导出任务结束！');
+        exportProgress.addLog('✓ 全部平台导出完毕', 'success');
+        exportProgress.finishTask();
+        message.success('导出成功，结果请查看日志路径');
+        endPerf(exportPerfToken, {
+          source: 'export-center',
+          exportType,
+          platform,
+          status: 'success',
+        });
       }
     } catch (error: any) {
       console.error('导出出错:', error);
       const errMsg = typeof error === 'string' ? error : (error?.message || '未知错误');
       message.error(`导出失败: ${errMsg}`);
-      setExportStatus(prev => prev === 'running' ? 'error' : prev);
-      setExportStatusText(prev => prev.includes('失败') ? prev : `导出失败: ${errMsg}`);
-      setExportLogs(prev => [...prev, {
-        time: new Date().toLocaleTimeString(),
-        message: `✗ 导出失败: ${errMsg}`,
-        type: 'error',
-      }]);
+      exportProgress.setStatus('error');
+      exportProgress.setStatusText(`导出失败: ${errMsg}`);
+      exportProgress.addLog(`✗ 导出失败: ${errMsg}`, 'error');
+      exportProgress.finishTask();
+      endPerf(exportPerfToken, {
+        source: 'export-center',
+        exportType,
+        platform,
+        status: 'error',
+        error: errMsg,
+      });
     } finally {
       setLoading(false);
     }
@@ -198,15 +195,6 @@ const ExportData: React.FC = () => {
     { key: 'daydaymap', label: 'DayDayMap' }
   ];
 
-  // 创建页数选项
-  const pageOptions = [
-    { value: 5, label: '5页' },
-    { value: 10, label: '10页' },
-    { value: 20, label: '20页' },
-    { value: 50, label: '50页' },
-    { value: 100, label: '100页' }
-  ];
-
   // 创建每页条数选项
   const pageSizeOptions = [
     { value: 10, label: '10条/页' },
@@ -216,7 +204,7 @@ const ExportData: React.FC = () => {
   ];
 
   return (
-    <Card title="数据导出" variant="outlined">
+    <Card title="数据导出" className="glass-effect" bordered={false}>
       <Form layout="vertical">
         <Form.Item label="导出类型">
           <Radio.Group value={exportType} onChange={handleExportTypeChange}>
@@ -236,8 +224,12 @@ const ExportData: React.FC = () => {
           <TextArea
             placeholder={exportType !== 'all' ? placeholders[platform as keyof typeof placeholders] : '输入查询语句，将自动适配各平台语法'}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setQuery(normalizeSmartPunctuation(e.target.value))}
             autoSize={{ minRows: 2, maxRows: 6 }}
+            autoCorrect="off"
+            autoCapitalize="off"
+            autoComplete="off"
+            spellCheck={false}
           />
         </Form.Item>
 
@@ -245,13 +237,14 @@ const ExportData: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space>
               <span>导出页数:</span>
-              <Select
+              <InputNumber
                 value={pages}
-                onChange={(value) => setPages(value)}
+                min={1}
+                max={100}
+                onChange={(value) => setPages(value ?? 1)}
                 style={{ width: 120 }}
-                options={pageOptions}
               />
-              
+
               <span>每页条数:</span>
               <Select
                 value={pageSize}
@@ -259,6 +252,24 @@ const ExportData: React.FC = () => {
                 style={{ width: 120 }}
                 options={pageSizeOptions}
               />
+            </Space>
+
+            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+              支持自定义 1-100 页
+            </span>
+
+            <Space>
+              <span>导出格式:</span>
+              <Radio.Group
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+              >
+                <Radio.Button value="csv">CSV</Radio.Button>
+                <Radio.Button value="json">JSON</Radio.Button>
+              </Radio.Group>
             </Space>
           </Space>
         </Form.Item>
@@ -273,7 +284,7 @@ const ExportData: React.FC = () => {
             <Radio value="365d">最近一年</Radio>
             <Radio value="custom">自定义时间</Radio>
           </Radio.Group>
-          
+
           {timeRange === 'custom' && (
             <div style={{ marginTop: 16 }}>
               <RangePicker
@@ -310,7 +321,7 @@ const ExportData: React.FC = () => {
 
       <Divider />
 
-      <Card title="导出说明" size="small" variant="outlined">
+      <Card title="导出说明" size="small" className="glass-effect" bordered={false}>
         <ul>
           <li><strong>导出当前查询结果</strong>：仅导出当前查询条件下的资产数据</li>
           <li><strong>导出本平台全部资产</strong>：自动计算总页数，导出当前平台下符合条件的所有资产</li>
@@ -321,17 +332,17 @@ const ExportData: React.FC = () => {
 
       {/* 导出进度弹窗 */}
       <ProgressModal
-        open={exportModalOpen}
+        open={exportProgress.modalOpen}
         title="数据导出"
-        status={exportStatus}
-        percent={exportPercent}
-        statusText={exportStatusText}
-        logs={exportLogs}
-        summary={exportSummary}
-        onClose={() => setExportModalOpen(false)}
+        status={exportProgress.status}
+        percent={exportProgress.percent}
+        statusText={exportProgress.statusText}
+        logs={exportProgress.logs}
+        summary={exportProgress.summary}
+        onClose={() => exportProgress.setModalOpen(false)}
       />
     </Card>
   );
 };
 
-export default ExportData; 
+export default ExportData;

@@ -10,7 +10,11 @@ pub enum ConversionError {
     /// Field is not supported by the platform
     UnsupportedField { platform: String, field: String },
     /// Operator is not supported by the platform
-    UnsupportedOperator { platform: String, operator: String, suggestion: String },
+    UnsupportedOperator {
+        platform: String,
+        operator: String,
+        suggestion: String,
+    },
     /// Configuration loading failed
     ConfigurationError(String),
     /// Internal conversion error
@@ -28,11 +32,25 @@ impl fmt::Display for ConversionError {
                 write!(f, "{}", msg)
             }
             ConversionError::UnsupportedField { platform, field } => {
-                write!(f, "{} platform does not support field '{}'", platform.to_uppercase(), field)
+                write!(
+                    f,
+                    "{} platform does not support field '{}'",
+                    platform.to_uppercase(),
+                    field
+                )
             }
-            ConversionError::UnsupportedOperator { platform, operator, suggestion } => {
-                write!(f, "{} platform does not support '{}' operator, please use '{}' instead",
-                    platform.to_uppercase(), operator, suggestion)
+            ConversionError::UnsupportedOperator {
+                platform,
+                operator,
+                suggestion,
+            } => {
+                write!(
+                    f,
+                    "{} platform does not support '{}' operator, please use '{}' instead",
+                    platform.to_uppercase(),
+                    operator,
+                    suggestion
+                )
             }
             ConversionError::ConfigurationError(msg) => {
                 write!(f, "Configuration error: {}", msg)

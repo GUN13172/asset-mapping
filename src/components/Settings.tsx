@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, Switch, Divider, message, Space } from 'antd';
-import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
-import { invoke } from '@tauri-apps/api/tauri';
+import { Card, Form, Input, InputNumber, Button, Select, Switch, Divider, message, Space, Modal } from 'antd';
+import { SaveOutlined, ReloadOutlined, GlobalOutlined, CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import { invoke } from '@tauri-apps/api/core';
 import { useTheme } from '../hooks/useTheme';
 
 interface Settings {
@@ -11,11 +11,18 @@ interface Settings {
   autoValidateApiKeys: boolean;
   theme: 'light' | 'dark' | 'system';
   language: 'zh_CN' | 'en_US';
+  allowInsecureTls: boolean;
+  proxyEnabled: boolean;
+  proxyUrl: string;
+  proxyUsername: string;
+  proxyPassword: string;
+  requestTimeout: number;
 }
 
 const Settings: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
+  const [proxyTesting, setProxyTesting] = useState(false);
   const { theme, setTheme } = useTheme();
 
   // 加载设置
@@ -57,10 +64,7 @@ const Settings: React.FC = () => {
 
   // 主题切换处理 - 立即生效
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
-    console.log('🎨 Settings: 主题切换开始', newTheme);
-    console.log('🎨 Settings: 当前主题', theme);
     setTheme(newTheme);
-    console.log('🎨 Settings: 主题切换完成');
   };
 
   // 选择导出路径
@@ -112,7 +116,7 @@ const Settings: React.FC = () => {
   ];
 
   return (
-    <Card title="系统设置" variant="outlined">
+    <Card title="系统设置" className="glass-effect" bordered={false}>
       <Form
         form={form}
         layout="vertical"
@@ -123,10 +127,16 @@ const Settings: React.FC = () => {
           pageSize: 20,
           autoValidateApiKeys: true,
           theme: theme,
-          language: 'zh_CN'
+          language: 'zh_CN',
+          allowInsecureTls: false,
+          proxyEnabled: false,
+          proxyUrl: '',
+          proxyUsername: '',
+          proxyPassword: '',
+          requestTimeout: 30,
         }}
       >
-        <Card title="基本设置" size="small" variant="outlined">
+        <Card title="基本设置" size="small" className="glass-effect" bordered={false}>
           <Form.Item
             name="exportPath"
             label="导出路径"
@@ -153,11 +163,19 @@ const Settings: React.FC = () => {
           >
             <Select options={pageSizeOptions} />
           </Form.Item>
+
+          <Form.Item
+            name="requestTimeout"
+            label="请求超时（秒）"
+            extra="API 请求的最大等待时间，范围 5-120 秒"
+          >
+            <InputNumber min={5} max={120} style={{ width: '100%' }} />
+          </Form.Item>
         </Card>
 
         <Divider />
 
-        <Card title="API设置" size="small" variant="outlined">
+        <Card title="API设置" size="small" className="glass-effect" bordered={false}>
           <Form.Item
             name="autoValidateApiKeys"
             label="自动验证API密钥"
@@ -170,11 +188,11 @@ const Settings: React.FC = () => {
 
         <Divider />
 
-        <Card title="界面设置" size="small" variant="outlined">
+        <Card title="界面设置" size="small" className="glass-effect" bordered={false}>
           <Form.Item
             label="主题"
           >
-            <Select 
+            <Select
               options={themeOptions}
               value={theme}
               onChange={handleThemeChange}
@@ -186,6 +204,110 @@ const Settings: React.FC = () => {
             label="语言"
           >
             <Select options={languageOptions} />
+          </Form.Item>
+        </Card>
+
+        <Divider />
+
+        <Card title={<><GlobalOutlined /> 网络代理</>} size="small" className="glass-effect" bordered={false}>
+          <Form.Item
+            name="allowInsecureTls"
+            label="允许不安全 TLS 证书"
+            valuePropName="checked"
+            extra="默认关闭。仅在抓包代理、自签名证书或本地调试场景下临时启用，会降低 HTTPS 安全性。"
+          >
+            <Switch />
+          </Form.Item>
+
+          <Form.Item
+            name="proxyEnabled"
+            label="启用代理"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev: any, cur: any) => prev.proxyEnabled !== cur.proxyEnabled}
+          >
+            {({ getFieldValue }: any) => getFieldValue('proxyEnabled') ? (
+              <>
+                <Form.Item
+                  name="proxyUrl"
+                  label="代理地址"
+                  rules={[{ required: true, message: '请输入代理地址' }]}
+                  extra="支持 HTTP/HTTPS/SOCKS5，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
+                >
+                  <Input placeholder="http://127.0.0.1:7890" />
+                </Form.Item>
+
+                <Form.Item
+                  name="proxyUsername"
+                  label="用户名（可选）"
+                >
+                  <Input placeholder="如无认证请留空" />
+                </Form.Item>
+
+                <Form.Item
+                  name="proxyPassword"
+                  label="密码（可选）"
+                >
+                  <Input.Password placeholder="如无认证请留空" />
+                </Form.Item>
+
+                <Form.Item>
+                  <Button
+                    icon={proxyTesting ? <LoadingOutlined /> : <CheckCircleOutlined />}
+                    loading={proxyTesting}
+                    onClick={async () => {
+                      const proxyUrl = form.getFieldValue('proxyUrl');
+                      if (!proxyUrl) {
+                        message.warning('请先输入代理地址');
+                        return;
+                      }
+                      setProxyTesting(true);
+                      try {
+                        const result = await invoke<string>('test_proxy', {
+                          proxyUrl,
+                          username: form.getFieldValue('proxyUsername') || '',
+                          password: form.getFieldValue('proxyPassword') || '',
+                          allowInsecureTls: form.getFieldValue('allowInsecureTls') || false,
+                        });
+                        message.success(result);
+                      } catch (e: any) {
+                        Modal.error({
+                          title: '代理测试失败',
+                          content: (
+                            <div>
+                              <p>无法连接到代理服务器或网络异常。</p>
+                              <div style={{
+                                marginTop: 8,
+                                padding: '8px 12px',
+                                background: 'rgba(255, 77, 79, 0.1)',
+                                border: '1px solid rgba(255, 77, 79, 0.3)',
+                                borderRadius: '6px',
+                                color: '#ff4d4f',
+                                fontSize: '12px',
+                                wordBreak: 'break-all',
+                                fontFamily: 'monospace'
+                              }}>
+                                {String(e)}
+                              </div>
+                            </div>
+                          ),
+                          okText: '已了解'
+                        });
+                      } finally {
+                        setProxyTesting(false);
+                      }
+                    }}
+                  >
+                    测试连通性
+                  </Button>
+                </Form.Item>
+              </>
+            ) : null}
           </Form.Item>
         </Card>
 
@@ -214,4 +336,4 @@ const Settings: React.FC = () => {
   );
 };
 
-export default Settings; 
+export default Settings;
