@@ -989,7 +989,7 @@ const AssetQuery: React.FC = () => {
           className="asset-query-table"
           columns={columns}
           dataSource={results}
-          rowKey={(record) => record.ip + record.port + record.source}
+          rowKey={(record, index) => `${record.source}-${record.ip}-${record.port}-${record.url || ''}-${index}`}
           loading={loading}
           size="middle"
           tableLayout="fixed"
