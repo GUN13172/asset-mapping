@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Tabs, Input, Button, Table, Form, Modal, message, Popconfirm, Tag, Space } from 'antd';
-import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { invoke } from '@tauri-apps/api/core';
 
 interface ApiKey {
@@ -309,6 +309,49 @@ const ApiKeyManagement: React.FC = () => {
     return baseColumns;
   };
 
+  // 导出所有API密钥
+  const handleExportKeys = async () => {
+    try {
+      const data = await invoke('export_all_api_keys');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `api_keys_export_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.success('导出成功');
+    } catch (error) {
+      console.error('导出API密钥出错:', error);
+      message.error('导出失败');
+    }
+  };
+
+  // 导入API密钥
+  const handleImportKeys = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const data = JSON.parse(content);
+        await invoke('import_all_api_keys', { data });
+        message.success('导入成功');
+        fetchApiKeys(); // 刷新当前列表
+      } catch (error) {
+        console.error('导入API密钥出错:', error);
+        message.error('导入失败，请检查文件格式');
+      }
+    };
+    reader.readAsText(file);
+    // 重置input，允许重复导入同一文件
+    e.target.value = '';
+  };
+
   // 创建平台选项卡
   const tabItems = [
     { key: 'hunter', label: 'Hunter' },
@@ -324,6 +367,25 @@ const ApiKeyManagement: React.FC = () => {
       bordered={false}
       extra={
         <Space>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExportKeys}
+          >
+            导出密钥
+          </Button>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => document.getElementById('import-keys-input')?.click()}
+          >
+            导入密钥
+          </Button>
+          <input
+            id="import-keys-input"
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleImportKeys}
+          />
           <Button
             type="primary"
             icon={<PlusOutlined />}

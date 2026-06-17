@@ -1277,6 +1277,64 @@ async fn import_local_pocs(path: Option<String>) -> Result<Vec<pocs::PocTemplate
     Ok(pocs::scan_pocs(&dir))
 }
 
+#[tauri::command]
+fn export_all_api_keys() -> Result<serde_json::Value, String> {
+    use serde_json::json;
+    let mut result = json!({});
+
+    if let Ok(keys) = config::get_all_fofa_api_keys() {
+        result["fofa"] = json!(keys.into_iter().map(|(email, key)| json!({"email": email, "key": key})).collect::<Vec<_>>());
+    }
+    if let Ok(keys) = config::get_all_hunter_api_keys() {
+        result["hunter"] = json!(keys);
+    }
+    if let Ok(keys) = config::get_all_quake_api_keys() {
+        result["quake"] = json!(keys);
+    }
+    if let Ok(keys) = config::get_all_daydaymap_api_keys() {
+        result["daydaymap"] = json!(keys);
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+fn import_all_api_keys(data: serde_json::Value) -> Result<(), String> {
+    if let Some(fofa_keys) = data.get("fofa").and_then(|v| v.as_array()) {
+        for item in fofa_keys {
+            if let (Some(email), Some(key)) = (item.get("email").and_then(|v| v.as_str()), item.get("key").and_then(|v| v.as_str())) {
+                let _ = config::add_fofa_api_key(key, email);
+            }
+        }
+    }
+
+    if let Some(hunter_keys) = data.get("hunter").and_then(|v| v.as_array()) {
+        for key in hunter_keys {
+            if let Some(key_str) = key.as_str() {
+                let _ = config::add_hunter_api_key(key_str);
+            }
+        }
+    }
+
+    if let Some(quake_keys) = data.get("quake").and_then(|v| v.as_array()) {
+        for key in quake_keys {
+            if let Some(key_str) = key.as_str() {
+                let _ = config::add_quake_api_key(key_str);
+            }
+        }
+    }
+
+    if let Some(daydaymap_keys) = data.get("daydaymap").and_then(|v| v.as_array()) {
+        for key in daydaymap_keys {
+            if let Some(key_str) = key.as_str() {
+                let _ = config::add_daydaymap_api_key(key_str);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1289,6 +1347,8 @@ fn main() {
             export_results_with_progress,
             export_platform_all,
             export_all_platforms,
+            export_all_api_keys,
+            import_all_api_keys,
             get_api_keys,
             add_api_key,
             delete_api_key,
