@@ -270,6 +270,22 @@ body {
   border-bottom: 1px solid var(--border-color) !important;
 }
 
+/* 修复固定列透明导致的重叠问题 */
+.ant-table-cell-fix-left,
+.ant-table-cell-fix-right {
+  background: var(--bg-card) !important;
+}
+
+.ant-table-thead > tr > th.ant-table-cell-fix-left,
+.ant-table-thead > tr > th.ant-table-cell-fix-right {
+  background: var(--bg-elevated) !important;
+}
+
+.ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell-fix-left,
+.ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell-fix-right {
+  background: var(--bg-hover) !important;
+}
+
 .ant-table-tbody > tr.ant-table-row:hover > td {
   background: var(--bg-hover) !important;
 }

@@ -448,6 +448,12 @@ const AssetQuery: React.FC = () => {
     const page = searchPage ?? currentPage;
     const size = searchPageSize ?? pageSize;
 
+    // 清空上次查询结果（如果是新查询）
+    if (page === 1) {
+      setResults([]);
+      setTotalResults(0);
+    }
+
     // 显示搜索进度弹窗
     setSearchModalOpen(true);
     setSearchStatus('running');
@@ -554,6 +560,10 @@ const AssetQuery: React.FC = () => {
       console.error('查询出错:', error);
       const errMsg = typeof error === 'string' ? error : (error?.message || '未知错误');
       message.error(`查询出错: ${errMsg}`);
+
+      setResults([]);
+      setTotalResults(0);
+      setPlatformTotals(EMPTY_PLATFORM_TOTALS);
 
       setSearchPercent(100);
       setSearchStatus('error');
